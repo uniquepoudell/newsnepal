@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-labelledby="t">
+  <title id="t">News Nepal</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e0173a"/>
+      <stop offset="1" stop-color="#8a0b22"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#g)"/>
+  <rect x="3" y="3" width="58" height="58" rx="12" fill="none" stroke="#1d4fb8" stroke-width="3"/>
+  <path d="M14 48 V18 L32 38 V22 L50 46" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="47" cy="19" r="5" fill="#ffd24a"/>
+  <text x="78" y="30" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="24" font-weight="800" fill="#16181d">News</text>
+  <text x="78" y="56" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="24" font-weight="800" fill="#c8102e" letter-spacing="2">NEPAL</text>
+</svg>

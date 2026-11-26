@@ -26,6 +26,15 @@
         "note": ""
       }
     ],
+    "support": {
+      "_help": "Ways readers pay you directly. Leave a value empty to hide it. Optional *_ne keys give Nepali text. See GUIDE.md, 'Getting paid directly'.",
+      "message": "News Nepal is free. If it helps you, a small tip keeps it running.",
+      "stripe_payment_link": "",
+      "stripe_button_text": "Pay by card (AUD)",
+      "nepal_qr_image": "",
+      "nepal_qr_label": "In Nepal? Scan with eSewa, Khalti or any Fonepay bank app.",
+      "nepal_account_name": ""
+    },
     "donations": {
       "message": "Like this site? Support independent news with a small tip.",
       "addresses": [
@@ -42,6 +51,35 @@
       "message_ne": "साइट मन पर्यो? स्वतन्त्र समाचारलाई सानो सहयोग गर्नुहोस्।"
     },
     "contact_email": ""
+  },
+  "ticker": {
+    "_help": "Price strip at the top. 'forex' codes come from Nepal Rastra Bank's daily rates (read at build time). 'coins' are CoinGecko ids, loaded live in the reader's browser. Empty lists hide the strip.",
+    "forex": [
+      "USD",
+      "AUD",
+      "GBP",
+      "EUR",
+      "INR"
+    ],
+    "coins": [
+      {
+        "id": "bitcoin",
+        "symbol": "BTC"
+      },
+      {
+        "id": "ethereum",
+        "symbol": "ETH"
+      },
+      {
+        "id": "tether",
+        "symbol": "USDT"
+      }
+    ],
+    "coin_currency": "usd"
+  },
+  "images": {
+    "_help": "Stories show the publisher's own image from the feed. If a feed has none, the build reads the article's og:image, up to this many new articles per build. Stories without an image get a branded placeholder.",
+    "og_lookups_per_build": 30
   },
   "keywords": {
     "_help": "A story is kept when its title or summary contains any 'include' word (for feeds with filter: true) and none of the 'exclude' words. Matching ignores case and works on whole words.",
@@ -128,7 +166,8 @@
       "label_i18n": {
         "en": "Nepal Finance",
         "ne": "नेपाल वित्त"
-      }
+      },
+      "color": "#1d4fb8"
     },
     {
       "id": "crypto",
@@ -136,7 +175,8 @@
       "label_i18n": {
         "en": "Crypto & Blockchain",
         "ne": "क्रिप्टो र ब्लकचेन"
-      }
+      },
+      "color": "#e07a00"
     },
     {
       "id": "global",
@@ -144,7 +184,8 @@
       "label_i18n": {
         "en": "Global Markets",
         "ne": "विश्व बजार"
-      }
+      },
+      "color": "#16915a"
     }
   ],
   "feeds": [
