@@ -236,3 +236,28 @@ html[lang="ne"] body { line-height: 1.7; }
 .timeline p { margin: 4px 0; }
 .agents ul { list-style: none; padding: 0; display: grid; gap: 8px; }
 
+
+/* Rates page */
+.rates-page h2 { margin-top: 26px; }
+.rate-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 18px 0 6px; padding: 18px 20px;
+  border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--crimson); }
+.rb-l { font-weight: 700; } .rb-v { font-size: clamp(1.6rem, 5vw, 2.2rem); font-weight: 850; letter-spacing: -.01em; }
+.rb-s { color: var(--muted); font-size: .9rem; width: 100%; }
+.table-scroll { overflow-x: auto; }
+table.rates { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .95rem; }
+table.rates th, table.rates td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table.rates th { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+table.rates td:not(:first-child), table.rates th:not(:first-child) { text-align: right; }
+.aud-table { max-width: 420px; }
+.fx-calc { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin: 22px 0 4px; padding: 14px 16px;
+  background: var(--surface-2); border-radius: var(--radius); }
+.fx-calc label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; font-weight: 700; }
+.fx-calc input, .fx-calc select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--text); min-width: 110px; }
+.fx-calc output { font-size: 1.25rem; font-weight: 850; padding-bottom: 6px; }
+.send-box { margin-top: 26px; }
+.send-box h2 { margin-top: 0; }
+.muted { color: var(--muted); } .small { font-size: .85rem; }
+a.tk-label { text-decoration: none; }
+.fx-calc[hidden] { display: none; }
+.prose a.btn { color: #fff; text-decoration: none; }
