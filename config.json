@@ -29,7 +29,7 @@
     "support": {
       "_help": "Ways readers pay you directly. Leave a value empty to hide it. Optional *_ne keys give Nepali text. See GUIDE.md, 'Getting paid directly'.",
       "message": "News Nepal is free. If it helps you, a small tip keeps it running.",
-      "stripe_payment_link": "",
+      "stripe_payment_link": "https://buy.stripe.com/3cI7sNfFc5ENek730MgnK00",
       "stripe_button_text": "Pay by card (AUD)",
       "nepal_qr_image": "",
       "nepal_qr_label": "In Nepal? Scan with eSewa, Khalti or any Fonepay bank app.",

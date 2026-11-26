@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import re
+import urllib.error
 import urllib.request
 
 UA = "Mozilla/5.0 (compatible; NewsNepalBot/1.0; +https://uniquepoudell.github.io/newsnepal/)"
@@ -57,15 +58,22 @@ def _is_image(data: bytes) -> bool:
 
 
 def cloudflare(prompt: str, seed: int, timeout: int = 60) -> bytes:
-    acct, token = os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""), os.environ.get("CLOUDFLARE_AI_TOKEN", "")
+    acct = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip().strip('"\'')
+    token = os.environ.get("CLOUDFLARE_AI_TOKEN", "").strip().strip('"\'')
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
     if not acct or not token:
         raise RuntimeError("no Cloudflare secrets")
     url = f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     body = json.dumps({"prompt": prompt, "steps": 6, "seed": seed}).encode()
     req = urllib.request.Request(url, data=body, method="POST", headers={
         "Authorization": f"Bearer {token}", "Content-Type": "application/json", "User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        raw = resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as e:  # show Cloudflare's own reason (never the token)
+        detail = e.read()[:300].decode("utf-8", "replace")
+        raise RuntimeError(f"Cloudflare HTTP {e.code}: {detail}") from None
     if _is_image(raw):
         return raw
     data = json.loads(raw)
