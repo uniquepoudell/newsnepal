@@ -84,7 +84,7 @@ with tempfile.TemporaryDirectory() as tmp:
     # stories without a publisher picture get one AI illustration each, credited to News Nepal
     assert nrb.get("gen", "").startswith("gen/") and (tmp / "out" / nrb["gen"]).exists(), nrb
     assert all(not i.get("gen") for i in res["items"] if i.get("image")), "illustrated a story that has a picture"
-    assert any("NRB keeps policy rate" in c and "No text" in c for c in GEN_CALLS), GEN_CALLS[:1]
+    assert any("NRB keeps policy rate" in c and "no text at all" in c for c in GEN_CALLS), GEN_CALLS[:1]
     page = (tmp / "out" / "index.html").read_text()
     assert "https://img.example.com/btc.jpg" in page and "Image: CryptoFeed" in page
     assert "Illustration: News Nepal (AI)" in page and nrb["gen"] in page
