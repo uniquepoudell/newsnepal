@@ -1,0 +1,75 @@
+{
+  "site": {
+    "title": "News Nepal Crypto",
+    "tagline": "Digital currency, blockchain and finance news for Nepal, updated every hour.",
+    "base_url": "",
+    "max_items": 120,
+    "max_age_days": 10,
+    "summary_chars": 240,
+    "language": "en"
+  },
+
+  "monetization": {
+    "_help": "Leave a value empty to hide it. See GUIDE.md, section 'Making money'.",
+    "adsense_client": "",
+    "adsense_slot_top": "",
+    "adsense_slot_feed": "",
+    "ad_every_n_items": 8,
+    "sponsor": {
+      "text": "",
+      "url": ""
+    },
+    "affiliate_links": [
+      { "label": "", "url": "", "note": "" }
+    ],
+    "donations": {
+      "message": "Like this site? Support independent news with a small tip.",
+      "addresses": [
+        { "coin": "ETH / USDT (Ethereum)", "address": "" },
+        { "coin": "BTC", "address": "" }
+      ],
+      "unstoppable_domain": "newsnepal.crypto"
+    },
+    "contact_email": ""
+  },
+
+  "keywords": {
+    "_help": "A story is kept when its title or summary contains any 'include' word (for feeds with filter: true) and none of the 'exclude' words. Matching ignores case and works on whole words.",
+    "include": [
+      "bitcoin", "btc", "ethereum", "eth", "crypto", "cryptocurrency", "cryptocurrencies",
+      "blockchain", "stablecoin", "stablecoins", "token", "tokens", "defi", "web3", "nft", "nfts",
+      "cbdc", "digital currency", "digital currencies", "digital rupee", "e-rupee", "digital payment",
+      "digital payments", "fintech", "wallet", "mining", "halving",
+      "nepse", "share market", "stock market", "stocks", "ipo", "rastra bank", "nrb", "central bank",
+      "monetary policy", "interest rate", "interest rates", "inflation", "remittance", "remittances",
+      "rupee", "exchange rate", "forex", "foreign exchange", "bank", "banks", "banking",
+      "finance", "financial", "economy", "economic", "budget", "gdp", "investment", "loan", "loans",
+      "insurance", "esewa", "khalti", "fonepay", "qr payment", "sebon", "securities"
+    ],
+    "exclude": [
+      "sponsored", "press release", "price prediction", "casino", "betting", "gambling", "airdrop"
+    ]
+  },
+
+  "categories": [
+    { "id": "nepal", "label": "Nepal Finance" },
+    { "id": "crypto", "label": "Crypto & Blockchain" },
+    { "id": "global", "label": "Global Markets" }
+  ],
+
+  "feeds": [
+    { "name": "CoinDesk", "url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "category": "crypto", "filter": false },
+    { "name": "Cointelegraph", "url": "https://cointelegraph.com/rss", "category": "crypto", "filter": false },
+    { "name": "Decrypt", "url": "https://decrypt.co/feed", "category": "crypto", "filter": false },
+    { "name": "Bitcoin Magazine", "url": "https://bitcoinmagazine.com/.rss/full/", "category": "crypto", "filter": false },
+
+    { "name": "ShareSansar", "url": "https://news.google.com/rss/search?q=site:sharesansar.com&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
+    { "name": "Merolagani", "url": "https://news.google.com/rss/search?q=site:merolagani.com&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
+    { "name": "Nepal Rastra Bank news", "url": "https://news.google.com/rss/search?q=%22Nepal+Rastra+Bank%22&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
+    { "name": "NEPSE news", "url": "https://news.google.com/rss/search?q=NEPSE+OR+%22Nepal+Stock+Exchange%22&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
+    { "name": "Nepal economy news", "url": "https://news.google.com/rss/search?q=Nepal+economy+OR+Nepal+banking+OR+Nepal+remittance&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
+    { "name": "Nepal digital currency news", "url": "https://news.google.com/rss/search?q=Nepal+cryptocurrency+OR+Nepal+CBDC+OR+Nepal+%22digital+currency%22&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
+
+    { "name": "Global finance news", "url": "https://news.google.com/rss/search?q=central+bank+digital+currency+OR+stablecoin+regulation&hl=en&gl=US&ceid=US:en", "category": "global", "filter": true }
+  ]
+}

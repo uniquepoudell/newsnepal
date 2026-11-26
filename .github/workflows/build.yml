@@ -1,0 +1,74 @@
+name: Build and publish
+
+on:
+  schedule:
+    - cron: "17 * * * *"      # every hour, at minute 17
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Run offline tests
+        run: python tests/test_build.py
+
+      - name: Build the site from live feeds
+        env:
+          # Your own domain (for example newsnepal.com). Set it under Settings > Secrets and variables > Actions > Variables.
+          CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          SITE_BASE_URL: ${{ vars.CUSTOM_DOMAIN != '' && format('https://{0}', vars.CUSTOM_DOMAIN) || steps.pages.outputs.base_url }}
+        run: python scripts/build.py --out public
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      # A .crypto domain's IPFS record points at one fixed snapshot, so this only runs when you
+      # start the workflow by hand or push a change, not every hour (that would fill a free Pinata plan).
+      - name: Pin a snapshot to IPFS (optional, needs the PINATA_JWT secret)
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+        if: env.PINATA_JWT != '' && github.event_name != 'schedule'
+        run: |
+          args=()
+          while IFS= read -r f; do
+            args+=(-F "file=@public/$f;filename=newsnepal/$f")
+          done < <(cd public && find . -type f ! -name CNAME | sed 's|^\./||')
+          resp=$(curl -sS -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
+            -H "Authorization: Bearer $PINATA_JWT" "${args[@]}" \
+            -F 'pinataMetadata={"name":"newsnepal-latest"}')
+          cid=$(echo "$resp" | python -c 'import sys,json;print(json.load(sys.stdin).get("IpfsHash",""))')
+          if [ -z "$cid" ]; then echo "Pinata upload failed: $resp"; exit 1; fi
+          echo "### IPFS copy pinned" >> "$GITHUB_STEP_SUMMARY"
+          echo "CID: \`$cid\` (open https://gateway.pinata.cloud/ipfs/$cid/)" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

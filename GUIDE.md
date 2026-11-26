@@ -1,0 +1,120 @@
+# News Nepal Crypto: setup, hosting and income guide
+
+The site is built. This guide covers the steps that need your own accounts, then how the site can earn money.
+
+**How it works in one line:** every hour GitHub fetches crypto and Nepal finance news, keeps only on-topic
+stories, rebuilds the page and publishes it for free on GitHub Pages. Your `newsnepal.crypto` domain (and later a
+normal `.com`) points at that page.
+
+---
+
+## Part 1. Put the site online (about 10 minutes)
+
+### Step 1. Create the repository
+1. Go to <https://github.com/new> while signed in as **uniquepoudell**.
+2. Repository name: `newsnepal`. Choose **Public** (free GitHub Pages needs a public repo).
+3. Leave "Add a README" unticked, then click **Create repository**.
+4. Tell Claude in the project thread that it exists. Claude will push the code.
+   (Or upload the files yourself: **Add file > Upload files**, and drag in everything from the `newsnepal` folder.)
+
+### Step 2. Turn on GitHub Pages
+1. In the repo, open **Settings > Pages**.
+2. Under **Build and deployment > Source**, pick **GitHub Actions**.
+3. Open the **Actions** tab. If asked, click **I understand my workflows, go ahead and enable them**.
+4. Click **Build and publish > Run workflow**. After about a minute your site is live at
+   **https://uniquepoudell.github.io/newsnepal/**. From then on it updates by itself every hour.
+
+### Step 3. Point newsnepal.crypto at the site
+1. Sign in at <https://unstoppabledomains.com> (you used your Gmail account) and open **My Domains**.
+2. Note which wallet `newsnepal.crypto` belongs to. If it is a wallet you no longer control, contact
+   Unstoppable support before going further, because you can't edit records without it.
+3. Click `newsnepal.crypto` > **Manage** > **Website**.
+4. Choose the **redirect / forwarding URL** option and enter `https://uniquepoudell.github.io/newsnepal/`
+   (or your `.com` once you have one). Save. This is the best option because the site changes every hour and the
+   redirect never needs updating.
+5. Saving may ask you to confirm with your wallet. Domains on Polygon usually have free edits. If it asks for a
+   gas fee on Ethereum, check the amount before you approve.
+6. Do the same for `nepaltrade.crypto` later if you want it to point somewhere.
+
+**Who can open a .crypto address?** Brave and Opera open `.crypto` sites directly. Chrome, Safari and Firefox need
+the Unstoppable Domains extension. That's why most of your real visitors will come through the normal web address
+(Step 5). Use `newsnepal.crypto` as your brand, your donation address and a link for crypto-savvy readers.
+
+### Step 4 (optional). Keep a copy on IPFS
+IPFS is only useful if you want a censorship-resistant snapshot. An IPFS record points at one fixed version,
+so it won't update hourly on its own.
+1. Create a free account at <https://pinata.cloud>, then **API Keys > New Key**, with "pinFileToIPFS" allowed. Copy the **JWT**.
+2. In the GitHub repo: **Settings > Secrets and variables > Actions > New repository secret**. Name `PINATA_JWT`, value the JWT.
+3. Run the workflow by hand (**Actions > Build and publish > Run workflow**). The run summary shows a **CID**.
+4. In Unstoppable Domains, **Website > IPFS**, paste that CID. Repeat when you want to refresh the snapshot.
+
+### Step 5. Add a normal domain (strongly recommended for income)
+Google search, Google AdSense and most sponsors only work with a normal domain.
+1. Buy a matching name, for example a `.com` from Cloudflare, Namecheap or Porkbun (about US$10 a year), or a free
+   `.com.np` from <https://register.com.np> (needs Nepali documents).
+2. In your domain's DNS settings add:
+   - four **A** records for `@`: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+   - a **CNAME** record for `www`: `uniquepoudell.github.io`
+3. In the GitHub repo: **Settings > Secrets and variables > Actions > Variables > New variable**.
+   Name `CUSTOM_DOMAIN`, value your domain, for example `newsnepalcrypto.com`.
+4. **Settings > Pages > Custom domain**: enter the same domain, save, and tick **Enforce HTTPS** once it allows.
+5. Change the `newsnepal.crypto` redirect (Step 3) to the new domain.
+
+---
+
+## Part 2. Fill in your money settings
+
+Everything lives in the `monetization` section of `config.json`. Edit it on github.com (click the file, then the
+pencil icon) and commit. The site rebuilds within a minute. Empty values stay hidden on the page.
+
+| Setting | What to put |
+|---|---|
+| `adsense_client` | Your AdSense id, like `ca-pub-1234567890123456`. The build adds `ads.txt` for you. |
+| `adsense_slot_top`, `adsense_slot_feed` | Ad unit ids from AdSense. The feed ad shows every `ad_every_n_items` stories. |
+| `sponsor.text`, `sponsor.url` | A sponsor's line and link for the sidebar. |
+| `affiliate_links` | Label, URL and short note for each link. |
+| `donations.addresses` | Your public wallet addresses. Only the **public** address, never a seed phrase or private key. |
+| `contact_email` | Shown in the footer so sponsors can reach you. Use a separate address if you want privacy. |
+
+To preview the empty ad spots on your own computer: `SHOW_AD_PLACEHOLDERS=1 python scripts/build.py`.
+
+---
+
+## Part 3. How this domain can make money
+
+To be honest about the size of it: a headline site earns from **traffic**, and traffic takes months to build.
+Display ads usually pay about US$0.20 to $1 per 1,000 page views from Nepal, and roughly $2 to $8 from US,
+UK or Australian readers interested in crypto. So 30,000 views a month might bring $10 to $150 from ads alone.
+The bigger money usually comes from sponsors and a newsletter once you have regular readers.
+
+Ranked from quickest to biggest:
+
+1. **Donations at newsnepal.crypto.** Free to set up. Small but immediate. Only accept tips where receiving crypto is legal for you.
+2. **Display ads.** Apply to Google AdSense once you have the `.com` and some original articles (see below).
+   AdSense often rejects sites that only list other people's headlines, so original posts matter. Alternatives
+   that accept smaller sites: Media.net, Ezoic. Crypto ad networks (Coinzilla, A-ADS, Bitmedia) pay more per
+   view but mostly advertise exchanges and trading. Don't show those to readers in Nepal.
+3. **Direct sponsors.** Sell the sidebar "Sponsor" spot by the month to legal Nepali finance businesses:
+   brokers listed with SEBON, banks, insurance companies, eSewa/Khalti merchants, fintech startups, accounting
+   firms, education consultancies. Even NPR 5,000 to 20,000 a month per sponsor beats ads at small traffic.
+4. **Newsletter.** Add a free weekly email ("This week in Nepal finance and digital currency") with Beehiiv or
+   Substack. Newsletters with 1,000+ engaged readers can sell sponsored slots.
+5. **Affiliate links.** Pick things that are legal and useful for your readers: finance and investing books,
+   online courses, VPN or web hosting, tax or accounting software. Exchange and trading affiliates only make sense for readers outside Nepal.
+6. **Paid listings on nepaltrade.crypto.** Later, the second domain can become a paid business directory
+   that this site promotes.
+
+### How to get readers
+- **Write one or two original posts a week.** Short explainers such as "What NRB's new policy means for
+  savers", "What is a CBDC?" or "NEPSE this week". They bring Google traffic and make AdSense approval more likely.
+  Claude can add a simple blog section when you want it.
+- **Share automatically.** Connect the site's RSS feed (`/feed.xml`) to a Telegram channel, a Facebook page and
+  X with a free tool such as IFTTT or Zapier.
+- **Submit to Google Search Console** once the `.com` is live, so Google finds the pages.
+- **Write in Nepali too.** There are few Nepali-language finance news sites, which is an opening.
+
+### Stay on the right side of the law
+Nepal Rastra Bank has declared crypto trading and mining illegal in Nepal, and Nepal's telecom regulator has
+ordered crypto websites blocked in the past. The site is set up as news and education with a disclaimer on every
+page. Keep it that way: no "buy now" buttons, no price predictions, no exchange referrals aimed at Nepal. Ask a
+Nepali lawyer before you accept crypto payments from Nepal-based sponsors.
