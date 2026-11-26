@@ -20,15 +20,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Set up GitHub Pages
         id: pages
         uses: actions/configure-pages@v5
+        continue-on-error: true   # lets the build run even before Pages is switched on
 
       - name: Run offline tests
         run: python tests/test_build.py
