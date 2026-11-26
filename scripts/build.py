@@ -1111,7 +1111,7 @@ def load_previous(cfg: dict, out: Path, name: str = "items.json") -> list[dict]:
 
 
 def collect(label: str, feeds: list[dict], keywords: dict, previous: list[dict], s: dict,
-            max_items: int) -> tuple[list[dict], list]:
+            max_items: int, max_age_days: int | None = None) -> tuple[list[dict], list]:
     include = compile_words(keywords.get("include", []))
     exclude = compile_words(keywords.get("exclude", []))
     require = compile_words(keywords.get("require", []))
@@ -1123,7 +1123,9 @@ def collect(label: str, feeds: list[dict], keywords: dict, previous: list[dict],
             continue
         try:
             raw = parse_feed(fetch(feed["url"]), feed)
-            kept = [i for i in raw if keep(i, feed, include, exclude, require)]
+            # Some sources are always about Australia (SBS Nepali), so they skip the "require" check.
+            req = None if feed.get("skip_require") else require
+            kept = [i for i in raw if keep(i, feed, include, exclude, req)]
             fresh.extend(kept)
             report.append((feed["name"], len(raw), len(kept), ""))
         except Exception as e:  # one broken feed must not break the site
@@ -1133,13 +1135,15 @@ def collect(label: str, feeds: list[dict], keywords: dict, previous: list[dict],
     for name, total, kept, err in report:
         print(f"  {name:32} {'ERROR ' + err if err else f'{kept:3d} kept of {total:3d}'}")
 
+    def _req(i):
+        return None if feeds_by_name.get(i.get("feed"), {}).get("skip_require") else require
     previous = [i for i in previous
-                if keep(i, feeds_by_name.get(i.get("feed"), {"filter": True}), include, exclude, require)]
+                if keep(i, feeds_by_name.get(i.get("feed"), {"filter": True}), include, exclude, _req(i))]
     # Translations already made for a story are kept even when the feed sends it again.
     known = {i["link"].split("#")[0]: i for i in previous}
 
     now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(days=int(s.get("max_age_days", 10)))
+    cutoff = now - timedelta(days=int(max_age_days or s.get("max_age_days", 10)))
     seen_links, seen_titles, merged = set(), set(), []
     for it in fresh + previous:  # fresh first so updated summaries win
         link, tkey = it["link"].split("#")[0], norm_key(it)
@@ -1207,7 +1211,8 @@ def build(config_path: Path, out: Path) -> dict:
     items, report = collect("news", cfg["feeds"], cfg["keywords"], load_previous(cfg, out, "items.json"),
                             s, int(s.get("max_items", 120)))
     visa_items, visa_report = collect("visa", vis.get("feeds", []), vis.get("keywords", {}),
-                                      load_previous(cfg, out, "visa-items.json"), s, int(vis.get("max_items", 60)))
+                                      load_previous(cfg, out, "visa-items.json"), s, int(vis.get("max_items", 60)),
+                                      int(vis.get("max_age_days", 45)))
 
     if not items and all(err for *_, err in report):
         print("Every news feed failed and there is no history; not overwriting the site.", file=sys.stderr)
