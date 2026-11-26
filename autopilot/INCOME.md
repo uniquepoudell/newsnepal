@@ -8,7 +8,7 @@ only the owner can do (signups and payouts must be in the owner's name).
 |---|---|---|---|---|
 | 1 | Direct support (Stripe) | Live on Support button since 2026-11-26 | Places the button well, thanks page | Nothing |
 | 2 | Email digest + sponsors in it | Planned (ROADMAP 3) | Builds digest and signup box | Picks provider and signs up (free) |
-| 3 | Remittance affiliate links (Remitly, Wise) via GorkhaPay | GorkhaPay applying | Adds links where money transfer fits | Signs up to the partner programs |
+| 3 | Remittance affiliate links (Remitly, Wise) via GorkhaPay | GorkhaPay applying; News Nepal `rates.html` sends senders to the GorkhaPay comparison since 2026-11-26 | Adds links where money transfer fits | Signs up to the partner programs |
 | 4 | Display ads (Google AdSense) | Waiting on own domain | `adsense` id already supported in config | Gets the domain, applies to AdSense |
 | 5 | Sponsored cards and "Advertise" page | Planned (ROADMAP 8) | Builds slot and page | Agrees deals, sends Stripe invoices |
 | 6 | Paid checklists (GorkhaPay products) | On sale at GorkhaPay | Links to them from visa stories | Nothing |
