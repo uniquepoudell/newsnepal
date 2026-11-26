@@ -448,20 +448,55 @@ font-size="26" font-weight="700" fill="#fff">{esc(label)}</text></svg>
 """
 
 
+NRB_API = "https://www.nrb.org.np/api/forex/v1/rates"
+UA_HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36",
+              "Accept": "application/json"}
+
+
+def _nrb_payload(start, end, per_page: int = 100, max_pages: int = 5) -> list[dict]:
+    """Raw NRB day records between two dates (inclusive), following pages if the API splits them."""
+    days: list[dict] = []
+    for page in range(1, max_pages + 1):
+        url = f"{NRB_API}?page={page}&per_page={per_page}&from={start}&to={end}"
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA_HEADERS), timeout=20) as resp:
+            got = json.loads(resp.read())["data"]["payload"] or []
+        days += got
+        if len(got) < per_page:
+            break
+    return days
+
+
+def _nrb_day(day: dict, wanted: list[str]) -> list[dict]:
+    rates = {r["currency"]["iso3"].upper(): r for r in day.get("rates", [])}
+    return [{"code": c, "unit": int(rates[c]["currency"].get("unit") or 1), "buy": float(rates[c]["buy"]),
+             "sell": float(rates[c]["sell"]), "date": day["date"], "src": "nrb"} for c in wanted if c in rates]
+
+
+def nrb_history(wanted: list[str], days: int = 31) -> list[dict]:
+    """The last `days` days of official NRB rates, newest first: [{"date": "YYYY-MM-DD", "rates": [...]}].
+    Empty when NRB can't be read (or NO_FOREX=1)."""
+    if not wanted or os.environ.get("NO_FOREX") == "1":
+        return []
+    today = datetime.now(NEPAL_TZ).date()
+    try:
+        raw = _nrb_payload(today - timedelta(days=days - 1), today)
+    except Exception as e:
+        print(f"  (NRB rate history unavailable: {type(e).__name__}: {e})")
+        return []
+    out = {}
+    for d in raw:
+        rows = _nrb_day(d, wanted) if d.get("date") else []
+        if rows:
+            out[d["date"][:10]] = [dict(r, date=d["date"][:10]) for r in rows]
+    print(f"  rate history: {len(out)} days from Nepal Rastra Bank")
+    return [{"date": k, "rates": out[k]} for k in sorted(out, reverse=True)]
+
+
 def _nrb_rates(wanted: list[str]) -> list[dict]:
     today = datetime.now(NEPAL_TZ).date()
-    url = (f"https://www.nrb.org.np/api/forex/v1/rates?page=1&per_page=5"
-           f"&from={today - timedelta(days=4)}&to={today}")
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36",
-        "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.loads(resp.read())
-    days = data["data"]["payload"]
+    days = _nrb_payload(today - timedelta(days=4), today, per_page=5, max_pages=1)
     days.sort(key=lambda d: d.get("date", ""), reverse=True)
-    rates = {r["currency"]["iso3"].upper(): r for r in days[0]["rates"]}
-    return [{"code": c, "unit": int(rates[c]["currency"].get("unit") or 1), "buy": float(rates[c]["buy"]),
-             "sell": float(rates[c]["sell"]), "date": days[0]["date"], "src": "nrb"} for c in wanted if c in rates]
+    return _nrb_day(days[0], wanted)
 
 
 def _market_rates(wanted: list[str]) -> list[dict]:
@@ -566,7 +601,7 @@ def render_ticker(cfg: dict, forex: list[dict], lang: str = "en") -> str:
 
 
 def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
-               description: str, kind: str = "crypto", ticker: str = "") -> str:
+               description: str, kind: str = "crypto", ticker: str = "", nav_as: str = "") -> str:
     s, m, t = cfg["site"], cfg["monetization"], T[lang]
     base = s.get("base_url", "").rstrip("/")
     here = page_file(base_name, lang)
@@ -585,7 +620,7 @@ def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
            ("about", t["about"])]
     current = ' aria-current="page"'
     nav_html = "".join(
-        f'<a href="{page_file(b, lang)}"{current if b == base_name else ""}>{esc(label)}</a>'
+        f'<a href="{page_file(b, lang)}"{current if b == (nav_as or base_name) else ""}>{esc(label)}</a>'
         for b, label in nav)
     footer = t["footer_visa"] if kind == "visa" else t["footer_crypto"]
     contact = (f' · <a href="mailto:{esc(m["contact_email"])}">{t["contact"]}</a>') if m.get("contact_email") else ""
@@ -962,6 +997,16 @@ RATES_TEXT = {
         "none": "Rates could not be read at this update. The next update runs within the hour. You can also check the official rates on the Nepal Rastra Bank website.",
         "official": "Official source: Nepal Rastra Bank forex page",
         "fine": "Reference rates for information only, not an offer to buy or sell currency and not financial advice. Your bank or money transfer company will use its own rate.",
+        "chg": "Change", "chg_note": "Change in the buying rate since Nepal Rastra Bank's previous published day ({date}).",
+        "recent": "Earlier days", "archive": "All past exchange rates", "today_link": "Today's rates →",
+        "day_title": "Nepal Rastra Bank exchange rate on {date}: AUD, USD, SAR, QAR, AED to NPR",
+        "day_desc": "Official Nepal Rastra Bank (NRB) foreign exchange rates for {date}: Australian dollar, US dollar, riyal, dirham, ringgit and every other currency in Nepali rupees, with the change from the previous day.",
+        "day_h1": "NRB exchange rate on {date}",
+        "day_src": "Official reference rates published by Nepal Rastra Bank for {date}. This page does not change.",
+        "prev_day": "← Previous day", "next_day": "Next day →",
+        "arch_title": "Past Nepal Rastra Bank exchange rates by date",
+        "arch_desc": "Archive of daily Nepal Rastra Bank exchange rates: look up the AUD, USD and Gulf currency rate in Nepali rupees for any recent day.",
+        "arch_h1": "Past NRB exchange rates", "arch_p": "One page per day, with every rate Nepal Rastra Bank published that day. 1 AUD in rupees at the buying rate is shown next to each date.",
     },
     "ne": {
         "title": "आजको अस्ट्रेलियन डलर (AUD) देखि नेपाली रुपैयाँ दर र नेपाल राष्ट्र बैंकको विनिमय दर",
@@ -981,6 +1026,16 @@ RATES_TEXT = {
         "none": "यो अपडेटमा दर पढ्न सकिएन। अर्को अपडेट एक घण्टाभित्र हुन्छ। आधिकारिक दर नेपाल राष्ट्र बैंकको वेबसाइटमा पनि हेर्न सक्नुहुन्छ।",
         "official": "आधिकारिक स्रोत: नेपाल राष्ट्र बैंकको विदेशी विनिमय पृष्ठ",
         "fine": "जानकारीका लागि मात्र सन्दर्भ दर। मुद्रा किनबेचको प्रस्ताव वा वित्तीय सल्लाह होइन। तपाईंको बैंक वा रेमिट्यान्स कम्पनीले आफ्नै दर प्रयोग गर्छ।",
+        "chg": "फरक", "chg_note": "नेपाल राष्ट्र बैंकको अघिल्लो प्रकाशित दिन ({date}) देखि खरिद दरमा आएको फरक।",
+        "recent": "अघिल्ला दिनहरू", "archive": "पुराना सबै विनिमय दर", "today_link": "आजको दर →",
+        "day_title": "{date} को नेपाल राष्ट्र बैंक विनिमय दर: AUD, USD, SAR, QAR, AED देखि रुपैयाँ",
+        "day_desc": "{date} का लागि नेपाल राष्ट्र बैंकको आधिकारिक विदेशी विनिमय दर: अस्ट्रेलियन डलर, अमेरिकी डलर, रियाल, दिराम, रिंगेट र अन्य मुद्रा रुपैयाँमा, अघिल्लो दिनको फरकसहित।",
+        "day_h1": "{date} को राष्ट्र बैंक विनिमय दर",
+        "day_src": "नेपाल राष्ट्र बैंकले {date} का लागि प्रकाशित गरेको आधिकारिक दर। यो पृष्ठ परिवर्तन हुँदैन।",
+        "prev_day": "← अघिल्लो दिन", "next_day": "अर्को दिन →",
+        "arch_title": "मिति अनुसार नेपाल राष्ट्र बैंकका पुराना विनिमय दर",
+        "arch_desc": "नेपाल राष्ट्र बैंकको दैनिक विनिमय दरको संग्रह: हालका कुनै पनि दिनको AUD, USD र खाडी मुद्राको दर रुपैयाँमा हेर्नुहोस्।",
+        "arch_h1": "पुराना राष्ट्र बैंक विनिमय दर", "arch_p": "हरेक दिनको एउटा पृष्ठ, त्यस दिन राष्ट्र बैंकले प्रकाशित गरेका सबै दरसहित। हरेक मितिसँग खरिद दरमा १ AUD को रुपैयाँ देखाइएको छ।",
     },
 }
 
@@ -991,7 +1046,61 @@ def _rs(x: float) -> str:
     return f"{x:,.2f}"
 
 
-def render_rates(cfg: dict, rates: list[dict], built_at: datetime, lang: str, ticker_rates: list[dict] | None = None) -> str:
+def day_page(date: str) -> str:
+    """Base name of the fixed page for one NRB day (flat file names keep relative links working)."""
+    return f"rates-{date}"
+
+
+def _change(r: dict, prev_by: dict) -> str:
+    """Day-on-day change in the buying rate, per the unit shown, as a table cell. Empty cell when unknown."""
+    p = prev_by.get(r["code"])
+    if not p or p["unit"] != r["unit"]:
+        return '<td class="chg">–</td>'
+    d = round(r["buy"] - p["buy"], 2)
+    if d > 0:
+        return f'<td class="chg up"><span aria-hidden="true">▲</span> +{_rs(d)}</td>'
+    if d < 0:
+        return f'<td class="chg down"><span aria-hidden="true">▼</span> −{_rs(-d)}</td>'
+    return '<td class="chg same">0.00</td>'
+
+
+def rate_table_html(rates: list[dict], lang: str, prev: list[dict] | None = None, prev_date: str = "") -> str:
+    x, li = RATES_TEXT[lang], 1 if lang == "ne" else 0
+    prev_by = {r["code"]: r for r in (prev or [])}
+    show_chg = bool(prev_by)
+    body = "".join(
+        f'<tr><td><b>{esc(r["code"])}</b> <span class="muted">{esc(CURRENCY_NAMES.get(r["code"], ("", ""))[li])}</span></td>'
+        f'<td>{r["unit"]}</td><td>{_rs(r["buy"])}</td><td>{_rs(r["sell"])}</td>'
+        + (_change(r, prev_by) if show_chg else "") + '</tr>' for r in rates)
+    head = (f'<th>{x["cur"]}</th><th>{x["unit"]}</th><th>{x["buy"]}</th><th>{x["sell"]}</th>'
+            + (f'<th>{x["chg"]}</th>' if show_chg else ""))
+    note = x["per"]
+    if show_chg:
+        note += " " + x["chg_note"].format(date=esc(prev_date or prev[0].get("date", "")))
+    return (f'<div class="table-scroll"><table class="rates"><thead><tr>{head}</tr></thead><tbody>{body}</tbody>'
+            f'</table></div><p class="muted small">{note}</p>')
+
+
+def _aud_per(rates: list[dict]) -> float | None:
+    aud = next((r for r in rates if r["code"] == "AUD"), None)
+    return aud["buy"] / aud["unit"] if aud else None
+
+
+def recent_days_html(history: list[dict], lang: str, *, skip: str = "", limit: int = 7) -> str:
+    x = RATES_TEXT[lang]
+    days = [d for d in history if d["date"] != skip][:limit]
+    if not days:
+        return ""
+    lis = "".join(
+        f'<li><a href="{page_file(day_page(d["date"]), lang)}">{esc(d["date"])}</a>'
+        + (f' <span class="muted">AUD Rs {_rs(a)}</span>' if (a := _aud_per(d["rates"])) else "") + '</li>'
+        for d in days)
+    return (f'<h2>{x["recent"]}</h2><ul class="day-list">{lis}</ul>'
+            f'<p><a href="{page_file("rates-archive", lang)}">{x["archive"]} →</a></p>')
+
+
+def render_rates(cfg: dict, rates: list[dict], built_at: datetime, lang: str, ticker_rates: list[dict] | None = None,
+                 history: list[dict] | None = None) -> str:
     """'AUD to NPR today' + full NRB rate table. Server-rendered so it works without JavaScript and can be indexed;
     app.js adds a small converter on top."""
     s, x = cfg["site"], RATES_TEXT[lang]
@@ -1029,22 +1138,100 @@ def render_rates(cfg: dict, rates: list[dict], built_at: datetime, lang: str, ti
         parts.append(f'<form class="fx-calc" id="fx-calc" hidden><label>{x["amount"]} <input id="fx-amt" type="number" '
                      f'min="0" step="any" value="1000" inputmode="decimal"></label><label>{x["currency"]} '
                      f'<select id="fx-cur">{opts}</select></label><output id="fx-out" data-pre="{x["result_pre"]}"></output></form>')
-        body = "".join(
-            f'<tr><td><b>{esc(r["code"])}</b> <span class="muted">{esc(CURRENCY_NAMES.get(r["code"], ("", ""))[li])}</span></td>'
-            f'<td>{r["unit"]}</td><td>{_rs(r["buy"])}</td><td>{_rs(r["sell"])}</td></tr>' for r in rates)
-        parts.append(f'<h2>{x["all"]}</h2><div class="table-scroll"><table class="rates"><thead><tr><th>{x["cur"]}</th>'
-                     f'<th>{x["unit"]}</th><th>{x["buy"]}</th><th>{x["sell"]}</th></tr></thead><tbody>{body}</tbody>'
-                     f'</table></div><p class="muted small">{x["per"]}</p>')
+        prev = None
+        if src == "nrb" and history:
+            prev = next((d for d in history if d["date"] < date[:10]), None)
+        parts.append(f'<h2>{x["all"]}</h2>'
+                     f'{rate_table_html(rates, lang, prev["rates"] if prev else None, prev["date"] if prev else "")}')
     else:
         parts.append(f'<p class="box">{x["none"]}</p>')
     gp = (rp.get("remittance_compare_url") or "").strip()
     if gp:
         parts.append(f'<aside class="box send-box"><h2>{x["send_h"]}</h2><p>{x["send_p"]}</p>'
                      f'<a class="btn btn-support" href="{esc(gp)}">{x["send_btn"]}</a></aside>')
+    parts.append(recent_days_html(history or [], lang, skip=date[:10] if src == "nrb" else ""))
     parts.append(f'<p class="muted small"><a href="{NRB_FOREX_PAGE}" rel="noopener">{x["official"]}</a>. {x["fine"]}</p>')
     return page_shell(cfg, lang, "rates", f'{x["title"]} | {s["title"]}',
                       f'<main id="main" class="wrap prose rates-page">{"".join(parts)}</main>',
                       description=x["desc"], ticker=render_ticker(cfg, ticker_rates or [], lang))
+
+
+def render_rates_day(cfg: dict, history: list[dict], i: int, lang: str) -> str:
+    """Fixed page for one NRB day (history is newest first; i is the day's index)."""
+    s, x = cfg["site"], RATES_TEXT[lang]
+    rp = cfg.get("rates_page") or {}
+    day = history[i]
+    date, rates = day["date"], day["rates"]
+    prev = history[i + 1] if i + 1 < len(history) else None
+    nxt = history[i - 1] if i > 0 else None
+    parts = [f'<p class="crumbs"><a href="{page_file("rates", lang)}">{x["today_link"]}</a></p>',
+             f'<h1>{x["day_h1"].format(date=esc(date))}</h1>',
+             f'<p class="updated">{x["day_src"].format(date=esc(date))}</p>']
+    per = _aud_per(rates)
+    if per:
+        parts.append(f'<div class="rate-big"><span class="rb-l">{x["aud_big"]} =</span> '
+                     f'<span class="rb-v">Rs {_rs(per)}</span><span class="rb-s">{x["buy"]} · {esc(date)}</span></div>')
+    parts.append(f'<h2>{x["all"]}</h2>{rate_table_html(rates, lang, prev["rates"] if prev else None, prev["date"] if prev else "")}')
+    nav = []
+    if prev:
+        nav.append(f'<a href="{page_file(day_page(prev["date"]), lang)}" rel="prev">{x["prev_day"]} {esc(prev["date"])}</a>')
+    nav.append(f'<a href="{page_file("rates-archive", lang)}">{x["archive"]}</a>')
+    if nxt:
+        nav.append(f'<a href="{page_file(day_page(nxt["date"]), lang)}" rel="next">{esc(nxt["date"])} {x["next_day"]}</a>')
+    parts.append(f'<nav class="day-nav">{"".join(nav)}</nav>')
+    gp = (rp.get("remittance_compare_url") or "").strip()
+    if gp:
+        parts.append(f'<aside class="box send-box"><h2>{x["send_h"]}</h2><p>{x["send_p"]}</p>'
+                     f'<a class="btn btn-support" href="{esc(gp)}">{x["send_btn"]}</a></aside>')
+    parts.append(f'<p class="muted small"><a href="{NRB_FOREX_PAGE}" rel="noopener">{x["official"]}</a>. {x["fine"]}</p>')
+    title = x["day_title"].format(date=date)
+    return page_shell(cfg, lang, day_page(date), f'{title} | {s["title"]}',
+                      f'<main id="main" class="wrap prose rates-page">{"".join(parts)}</main>',
+                      description=x["day_desc"].format(date=date), nav_as="rates")
+
+
+def render_rates_archive(cfg: dict, history: list[dict], lang: str) -> str:
+    s, x = cfg["site"], RATES_TEXT[lang]
+    months: dict[str, list[str]] = {}
+    for d in history:
+        per = _aud_per(d["rates"])
+        months.setdefault(d["date"][:7], []).append(
+            f'<li><a href="{page_file(day_page(d["date"]), lang)}">{esc(d["date"])}</a>'
+            + (f' <span class="muted">AUD Rs {_rs(per)}</span>' if per else "") + '</li>')
+    body = "".join(f'<h2>{esc(m)}</h2><ul class="day-list">{"".join(lis)}</ul>' for m, lis in months.items())
+    if not body:
+        body = f'<p class="box">{x["none"]}</p>'
+    parts = [f'<p class="crumbs"><a href="{page_file("rates", lang)}">{x["today_link"]}</a></p>',
+             f'<h1>{x["arch_h1"]}</h1><p>{x["arch_p"]}</p>', body,
+             f'<p class="muted small"><a href="{NRB_FOREX_PAGE}" rel="noopener">{x["official"]}</a>. {x["fine"]}</p>']
+    return page_shell(cfg, lang, "rates-archive", f'{x["arch_title"]} | {s["title"]}',
+                      f'<main id="main" class="wrap prose rates-page">{"".join(parts)}</main>',
+                      description=x["arch_desc"], nav_as="rates")
+
+
+def merge_rate_history(fresh: list[dict], previous: list[dict], keep_days: int = 400) -> list[dict]:
+    """Union of earlier saved days and freshly read NRB days (fresh wins), newest first, capped."""
+    by = {}
+    for d in previous or []:
+        if isinstance(d, dict) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(d.get("date", ""))) and d.get("rates"):
+            by[d["date"]] = d["rates"]
+    for d in fresh:
+        by[d["date"]] = d["rates"]
+    return [{"date": k, "rates": by[k]} for k in sorted(by, reverse=True)[:keep_days]]
+
+
+def load_rate_history(cfg: dict, out: Path) -> list[dict]:
+    """Days saved by earlier builds (local file, else the live site), so the archive keeps growing."""
+    local = out / "rates-history.json"
+    try:
+        if local.exists():
+            return json.loads(local.read_text("utf-8")).get("days", [])
+        base = cfg["site"].get("base_url", "").rstrip("/")
+        if base:
+            return json.loads(fetch(f"{base}/rates-history.json", timeout=15)).get("days", [])
+    except Exception as e:
+        print(f"  (no previous rate history: {type(e).__name__}: {e})")
+    return []
 
 
 def render_about(cfg: dict, lang: str) -> str:
@@ -1534,15 +1721,19 @@ def build(config_path: Path, out: Path) -> dict:
     ticker_codes = [c.upper() for c in (cfg.get("ticker") or {}).get("forex", [])]
     rp = cfg.get("rates_page") or {}
     all_codes = list(dict.fromkeys(ticker_codes + [c.upper() for c in rp.get("currencies", [])]))
-    rate_table = fetch_forex(cfg, all_codes)
+    fresh_days = nrb_history(all_codes, int(rp.get("fetch_days", 31)))
+    history = merge_rate_history(fresh_days, load_rate_history(cfg, out), int(rp.get("history_days", 400)))
+    rate_table = fresh_days[0]["rates"] if fresh_days else fetch_forex(cfg, all_codes)
     by_code = {r["code"]: r for r in rate_table}
     forex = [by_code[c] for c in ticker_codes if c in by_code]
     (out / "rates.json").write_text(json.dumps({"built": now.isoformat(), "rates": rate_table}, indent=1), "utf-8")
+    (out / "rates-history.json").write_text(json.dumps({"built": now.isoformat(), "days": history}), "utf-8")
     pages = []
     for lang in LANGS:
         for base_name, html_text in (
             ("index", render_index(cfg, items, now, lang, forex)),
-            ("rates", render_rates(cfg, rate_table, now, lang, forex)),
+            ("rates", render_rates(cfg, rate_table, now, lang, forex, history)),
+            ("rates-archive", render_rates_archive(cfg, history, lang)),
             ("support", render_support(cfg, lang)),
             ("about", render_about(cfg, lang)),
             ("visa", render_visa(cfg, visa_items, now, lang)),
@@ -1552,6 +1743,10 @@ def build(config_path: Path, out: Path) -> dict:
         ):
             name = page_file(base_name, lang)
             (out / name).write_text(html_text, "utf-8")
+            pages.append(name)
+        for i, d in enumerate(history):
+            name = page_file(day_page(d["date"]), lang)
+            (out / name).write_text(render_rates_day(cfg, history, i, lang), "utf-8")
             pages.append(name)
     (out / "feed.xml").write_text(render_rss(cfg, items, now), "utf-8")
     for name, data in (("items.json", items), ("visa-items.json", visa_items)):

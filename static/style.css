@@ -366,3 +366,16 @@ body { background:
 .story:hover { box-shadow: 0 12px 30px color-mix(in srgb, var(--c) 25%, transparent); }
 .box { transition: transform .15s, box-shadow .15s; }
 .box:hover { box-shadow: var(--shadow-hover); }
+
+/* Rate history: change arrows, dated pages, archive */
+table.rates td.chg { white-space: nowrap; font-size: .88rem; }
+td.chg.up { color: #16915a; } td.chg.down { color: var(--crimson); } td.chg.same { color: var(--muted); }
+.day-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 14px; }
+.day-list a { font-weight: 700; font-variant-numeric: tabular-nums; }
+.day-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 22px 0; }
+.crumbs { margin: 14px 0 0; font-size: .9rem; }
+@media (max-width: 520px) {
+  table.rates th, table.rates td { padding: 7px 5px; }
+  table.rates .muted { display: block; font-size: .8rem; }
+  table.rates th { font-size: .7rem; letter-spacing: .02em; }
+}
