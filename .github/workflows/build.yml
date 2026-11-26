@@ -35,7 +35,7 @@ jobs:
         run: python tests/test_build.py
 
       - name: Install the Claude API client (for Nepali translation)
-        run: pip install --quiet anthropic
+        run: pip install --quiet anthropic pillow
 
       - name: Build the site from live feeds
         env:

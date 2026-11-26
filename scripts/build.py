@@ -1236,7 +1236,7 @@ def illustrate_items(cfg: dict, items: list[dict], out: Path) -> None:
     for it in items:
         if it.get("image"):
             continue
-        name = f"gen/{illustrate.story_id(it['link'])}.jpg"
+        name = illustrate.file_name(it["link"])
         path = out / name
         if path.exists():
             it["gen"] = name
