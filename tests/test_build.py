@@ -24,6 +24,14 @@ cfg["monetization"]["support"]["nepal_qr_image"] = "support-qr.png"
 os.environ["NO_OG_LOOKUPS"] = "1"   # tests run offline
 os.environ["NO_FOREX"] = "1"
 
+# Fake image generator so tests never call a real API.
+import illustrate  # noqa: E402
+GEN_CALLS = []
+def _fake_generate(it, cfg):
+    GEN_CALLS.append(illustrate.make_prompt(it))
+    return b"\xff\xd8\xff" + b"0" * 5000
+illustrate.generate = _fake_generate
+
 # Google-style parsing is keyed on the URL; patch the parser to treat the fixture as Google News.
 orig = build.parse_feed
 build.parse_feed = lambda data, feed: orig(data, dict(feed, url="https://news.google.com/x") if feed.get("_google") else feed)
@@ -72,9 +80,13 @@ with tempfile.TemporaryDirectory() as tmp:
     assert cbdc["image"] == "https://img.example.org/cbdc.png", cbdc.get("image")
     nrb = next(i for i in res["items"] if i["title"].startswith("NRB keeps"))
     assert nrb["image"] == ""
+    # stories without a publisher picture get one AI illustration each, credited to News Nepal
+    assert nrb.get("gen", "").startswith("gen/") and (tmp / "out" / nrb["gen"]).exists(), nrb
+    assert all(not i.get("gen") for i in res["items"] if i.get("image")), "illustrated a story that has a picture"
+    assert any("NRB keeps policy rate" in c and "No text" in c for c in GEN_CALLS), GEN_CALLS[:1]
     page = (tmp / "out" / "index.html").read_text()
     assert "https://img.example.com/btc.jpg" in page and "Image: CryptoFeed" in page
-    assert "img/ph-nepal.svg" in page, "placeholder not used for imageless story"
+    assert "Illustration: News Nepal (AI)" in page and nrb["gen"] in page
     assert 'class="story hero"' in page
     assert "buy.stripe.com/test_123" in page and "support-qr.png" in page and "Support News Nepal" in page
     assert 'id="q"' in page and 'id="theme-toggle"' in page and "wa.me" in page and 'data-coin="bitcoin"' in page
@@ -110,10 +122,13 @@ with tempfile.TemporaryDirectory() as tmp:
     import xml.etree.ElementTree as ET; ET.parse(tmp / "out" / "feed.xml")
     # second build keeps history from items.json even when feeds are empty of new items
     n_calls = len(CALLS)
+    n_gen = len(GEN_CALLS)
     res2 = build.build(tmp / "config.json", tmp / "out")
     assert len(res2["items"]) == len(res["items"])
     assert all(a.get("image") == b.get("image") for a, b in zip(res["items"], res2["items"])), "images lost on rebuild"
     assert len(CALLS) == n_calls, "stories were translated twice"
+    assert len(GEN_CALLS) == n_gen, "illustrations were made twice"
+    assert all(i.get("gen") for i in res2["items"] if not i.get("image")), "illustrations lost between builds"
     assert all(i.get("title_ne") for i in res2["items"]), "translations lost between builds"
 print("OK: all checks passed")
 

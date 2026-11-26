@@ -313,6 +313,7 @@ def norm_key(item: dict) -> str:
 
 import translate  # noqa: E402  (scripts/translate.py)
 import visa_content as V  # noqa: E402  (scripts/visa_content.py)
+import illustrate  # noqa: E402  (scripts/illustrate.py)
 
 LANGS = ("en", "ne")
 
@@ -333,7 +334,7 @@ T = {
         "footer_own": "Headlines and summaries belong to their publishers.", "contact": "Contact",
         "machine": "",
         "search": "Search stories", "no_match": "No stories match. Try another word or topic.",
-        "support_btn": "Support", "support_h": "Support News Nepal", "image_by": "Image: {src}",
+        "support_btn": "Support", "support_h": "Support News Nepal", "image_by": "Image: {src}", "illustration": "Illustration: News Nepal (AI)",
         "support_msg": "News Nepal is free. If it helps you, a small tip keeps it running.",
         "all_ways": "All ways to support →", "crypto_tips": "Crypto tips (from outside Nepal)", "crypto": "Crypto",
         "qr_label": "In Nepal? Scan with eSewa, Khalti or any Fonepay bank app.",
@@ -362,7 +363,7 @@ T = {
         "footer_own": "शीर्षक र सारांश सम्बन्धित प्रकाशकका हुन्।", "contact": "सम्पर्क",
         "machine": "शीर्षक र सारांश स्वचालित रूपमा अनुवाद गरिएका हुन्, त्यसैले सानातिना गल्ती हुन सक्छन्। मूल लेख अंग्रेजीमा छ।",
         "search": "समाचार खोज्नुहोस्", "no_match": "कुनै समाचार भेटिएन। अर्को शब्द वा विषय प्रयोग गर्नुहोस्।",
-        "support_btn": "सहयोग", "support_h": "न्युज नेपाललाई सहयोग गर्नुहोस्", "image_by": "तस्बिर: {src}",
+        "support_btn": "सहयोग", "support_h": "न्युज नेपाललाई सहयोग गर्नुहोस्", "image_by": "तस्बिर: {src}", "illustration": "चित्र: न्युज नेपाल (AI)",
         "support_msg": "न्युज नेपाल निःशुल्क छ। उपयोगी लागेमा सानो सहयोगले यसलाई चलाइराख्छ।",
         "all_ways": "सहयोगका सबै तरिका →", "crypto_tips": "क्रिप्टो सहयोग (नेपालबाहिरबाट मात्र)", "crypto": "क्रिप्टो",
         "qr_label": "नेपालमा हुनुहुन्छ? eSewa, Khalti वा कुनै पनि Fonepay बैंक एपबाट स्क्यान गर्नुहोस्।",
@@ -644,6 +645,8 @@ def story_card(it: dict, lang: str, cats: dict | None, *, hero: bool = False, co
     ph = f"img/ph-{cat}.svg" if cat else "img/ph-visa.svg"
     img = it.get("image") or ""
     credit = esc(t["image_by"].format(src=it["source"]))
+    if not img and it.get("gen"):
+        img, credit = it["gen"], esc(t["illustration"])
     if img:
         pic = (f'<img class="thumb" src="{esc(img)}" alt="" loading="{"eager" if hero else "lazy"}" decoding="async" '
                f'referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'{ph}\';this.nextElementSibling.hidden=true">'
@@ -1181,6 +1184,8 @@ def collect(label: str, feeds: list[dict], keywords: dict, previous: list[dict],
             it["title_ne"], it["summary_ne"] = old["title_ne"], old.get("summary_ne", "")
         if old and old is not it and not it.get("image") and (old.get("image") or old.get("image_checked")):
             it["image"], it["image_checked"] = old.get("image", ""), old.get("image_checked", False)
+        if old and old is not it and old.get("gen") and not it.get("gen"):
+            it["gen"] = old["gen"]
         if re.search("[\u0900-\u097F]", it["title"]):  # headline already in Nepali (Devanagari)
             it["lang"] = "ne"
         if it.get("lang") == "ne":
@@ -1212,6 +1217,52 @@ def enrich_images(cfg: dict, items: list[dict]) -> None:
         except Exception:
             it["image"] = ""
     print(f"  images: looked up {done} article pages; {sum(1 for i in items if i.get('image'))} of {len(items)} stories have a picture")
+
+
+def illustrate_items(cfg: dict, items: list[dict], out: Path) -> None:
+    """Give stories without a publisher picture an original AI illustration (see scripts/illustrate.py).
+    Each is made once; later builds download it back from the live site instead of making it again."""
+    settings = (cfg.get("images") or {}).get("generate") or {}
+    if not settings.get("enabled", False) or os.environ.get("NO_IMAGE_GEN") == "1":
+        return
+    budget = int(settings.get("per_build", 6))
+    base = cfg["site"].get("base_url", "").rstrip("/")
+    (out / "gen").mkdir(parents=True, exist_ok=True)
+    made = reused = failed = 0
+    first_error = ""
+    for it in items:
+        if it.get("image"):
+            continue
+        name = f"gen/{illustrate.story_id(it['link'])}.jpg"
+        path = out / name
+        if path.exists():
+            it["gen"] = name
+            continue
+        if it.get("gen") and base:
+            try:
+                req = urllib.request.Request(f"{base}/{name}", headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    data = resp.read()
+                if len(data) > 4000:
+                    path.write_bytes(data)
+                    it["gen"] = name
+                    reused += 1
+                    continue
+            except Exception:
+                pass
+        it.pop("gen", None)
+        if budget <= 0:
+            continue
+        budget -= 1
+        try:
+            path.write_bytes(illustrate.generate(it, cfg))
+            it["gen"] = name
+            made += 1
+        except Exception as e:
+            failed += 1
+            first_error = first_error or str(e)
+    print(f"  illustrations: {made} new, {reused} reused, {failed} failed"
+          + (f" (first error: {first_error[:300]})" if first_error else ""))
 
 
 def write_placeholders(cfg: dict, out: Path) -> None:
@@ -1251,6 +1302,7 @@ def build(config_path: Path, out: Path) -> dict:
         if f.is_file():
             shutil.copy2(f, out / f.name)
     write_placeholders(cfg, out)
+    illustrate_items(cfg, items + visa_items, out)
     forex = fetch_forex(cfg)
     pages = []
     for lang in LANGS:

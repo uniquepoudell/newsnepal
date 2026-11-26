@@ -78,8 +78,15 @@
     "coin_currency": "usd"
   },
   "images": {
-    "_help": "Stories show the publisher's own image from the feed. If a feed has none, the build reads the article's og:image, up to this many new articles per build. Stories without an image get a branded placeholder.",
-    "og_lookups_per_build": 30
+    "_help": "Stories show the publisher's own image from the feed, or the article's og:image (up to og_lookups_per_build new articles per build). Stories with neither get an original AI illustration (see 'generate' and GUIDE.md Part 8), or a branded placeholder until one is made.",
+    "og_lookups_per_build": 30,
+    "generate": {
+      "enabled": true,
+      "provider": "auto",
+      "_provider_help": "auto = Cloudflare Workers AI when the CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN secrets are set, otherwise the free pollinations.ai service. Or set cloudflare, pollinations or off.",
+      "per_build": 6,
+      "style": ""
+    }
   },
   "keywords": {
     "_help": "A story is kept when its title or summary contains any 'include' word (for feeds with filter: true) and none of the 'exclude' words. Matching ignores case and works on whole words.",
