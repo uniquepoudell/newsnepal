@@ -6,8 +6,13 @@ Rank by: more readers or more income per hour of work. Keep each item small enou
 0a. **Fast-money pivot (owner, 2026-11-26: "find something which can earn asap").** The site gets almost no
     visitors, and a news aggregator ranks poorly in Google because the stories are on other sites too. Build
     daily *utility* pages that people search every day and that we can fill from official or open data:
-    - "AUD to NPR today" and "NRB exchange rate today" pages (we already fetch NRB rates), with a link to the
-      GorkhaPay comparison for sending money.
+    - ~~"AUD to NPR today" and "NRB exchange rate today" pages~~ Done 2026-11-26 (PR #12, `rates.html`).
+    - **Next: daily dated rate pages.** Keep each day's NRB table at `rates/YYYY-MM-DD.html` (plus a small archive
+      list and "change since yesterday" arrows on `rates.html`), in the sitemap. Search shows ShareSansar
+      publishing one dated "today's rate" post every day; fresh dated pages are how rate searches get caught.
+      Needs history: commit `rates.json` snapshots or read yesterday's from the live site like `items.json`.
+    - Per-currency landing pages for the big remittance corridors: `rates/sar-to-npr.html`, `qar-`, `aed-`,
+      `myr-`, `krw-`, `usd-`, each with an amounts table and the GorkhaPay link.
     - "Gold and silver price today in Nepal" (only from the official FENEGOSIDA published rate; skip if no
       reliable source can be read automatically).
     - "IPO calendar Nepal": open and upcoming IPOs from the NEPSE / SEBON news we already collect, with links to
@@ -37,7 +42,9 @@ Rank by: more readers or more income per hour of work. Keep each item small enou
    signs a sponsor. Add a "Advertise with us" page with audience info (no invented numbers).
 9. **Better Nepali.** Once the owner adds `ANTHROPIC_API_KEY`, check translations and the Nepali pages' titles.
 10. **Feed quality.** Drop off-topic stories, add good feeds (official NRB, SEBON, Home Affairs), dedupe better.
+    2026-11-26 build: SBS Nepali keeps 1 of 69 and "Nepali news: Australia visa" 0 of 3; check their keyword match.
 
 ## Done
+- 2026-11-26: Rates page: AUD to NPR today, full NRB table (22 currencies), converter, GorkhaPay link (PR #12).
 - 2026-11-26: redesign, logo, topic chips, search, dark mode, share, ticker, support page with Stripe link.
 - 2026-11-26: AI illustrations for stories without a publisher picture (v2 prompt, web-sized).
