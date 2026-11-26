@@ -25,25 +25,34 @@
     store('nn-theme', root.dataset.theme);
   });
 
-  // ---- chips + search
+  // ---- views, chips, search, paging
+  // Home page shows a carousel and swipeable topic rails; picking a topic, searching or "browse all" switches to the full grid.
+  var feed = $('.feed[data-view]');
   var chips = $$('.chip');
-  var stories = $$('.story');
+  var stories = $$('.stories .story');
   var ads = $$('.stories .ad');
   var q = $('#q');
   var noMatch = $('.no-match');
+  var moreBtn = $('.show-more');
+  var PAGE = 12, limit = PAGE, browsing = false;
   var cat = 'all';
   function apply() {
     var term = q ? q.value.trim().toLowerCase() : '';
+    var grid = !feed || browsing || cat !== 'all' || !!term;
+    if (feed) feed.dataset.view = grid ? 'grid' : 'rows';
     var shown = 0;
     stories.forEach(function (s) {
       var ok = (cat === 'all' || s.dataset.cat === cat) && (!term || (s.dataset.q || '').indexOf(term) !== -1);
-      s.hidden = !ok; if (ok) shown++;
+      s.hidden = !ok;
+      if (ok) shown++;
+      s.classList.toggle('is-paged', ok && !!feed && shown > limit);
     });
     ads.forEach(function (a) { a.hidden = cat !== 'all' || !!term; });
     if (noMatch) noMatch.hidden = shown > 0 || !stories.length;
+    if (moreBtn) moreBtn.hidden = !feed || shown <= limit;
   }
-  function pick(c) {
-    cat = c;
+  function pick(c, scroll) {
+    cat = c; limit = PAGE;
     chips.forEach(function (t) {
       var on = t.dataset.cat === c;
       t.classList.toggle('is-active', on);
@@ -51,15 +60,71 @@
     });
     store('nn-cat', c);
     apply();
+    if (scroll && feed) feed.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  chips.forEach(function (t) { t.addEventListener('click', function () { pick(t.dataset.cat); }); });
+  chips.forEach(function (t) { t.addEventListener('click', function () { browsing = false; pick(t.dataset.cat); }); });
+  $$('[data-pick]').forEach(function (b) {
+    b.addEventListener('click', function () { browsing = true; pick(b.dataset.pick, true); });
+  });
+  $$('.back-rows').forEach(function (b) {
+    b.addEventListener('click', function () { browsing = false; if (q) q.value = ''; pick('all', true); });
+  });
+  if (moreBtn) moreBtn.addEventListener('click', function () { limit += PAGE; apply(); });
   var saved = store('nn-cat');
-  if (saved && $('.chip[data-cat="' + saved + '"]')) pick(saved);
+  if (saved && saved !== 'all' && $('.chip[data-cat="' + saved + '"]')) pick(saved); else apply();
   if (q) {
-    q.addEventListener('input', apply);
+    q.addEventListener('input', function () { limit = PAGE; apply(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && document.activeElement !== q && !/input|textarea/i.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
     });
+  }
+
+  // ---- hero carousel: arrows, dots, autoplay (paused on hover/focus/touch, off for reduced motion)
+  $$('.carousel').forEach(function (car) {
+    var track = $('.slides', car), slides = $$('.slide', car), dots = $$('.dot', car);
+    if (slides.length < 2) { dots.forEach(function (d) { d.hidden = true; }); return; }
+    var cur = 0, timer, paused = false;
+    var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function mark(i) {
+      cur = i;
+      slides.forEach(function (s, n) { s.classList.toggle('is-current', n === i); });
+      dots.forEach(function (d, n) { d.classList.toggle('is-on', n === i); d.setAttribute('aria-current', n === i ? 'true' : 'false'); });
+    }
+    function go(i) { i = (i + slides.length) % slides.length; track.scrollTo({ left: i * track.clientWidth, behavior: still ? 'auto' : 'smooth' }); mark(i); }
+    function restart() { clearInterval(timer); if (!still) timer = setInterval(function () { if (!paused && !document.hidden) go(cur + 1); }, 6500); }
+    $$('.car-btn', car).forEach(function (b) {
+      b.hidden = false;
+      b.addEventListener('click', function () { go(cur + (b.classList.contains('car-next') ? 1 : -1)); restart(); });
+    });
+    dots.forEach(function (d, n) { d.addEventListener('click', function (e) { e.preventDefault(); go(n); restart(); }); });
+    var st;
+    track.addEventListener('scroll', function () {
+      clearTimeout(st);
+      st = setTimeout(function () { var i = Math.round(track.scrollLeft / track.clientWidth); if (i !== cur) mark(i); }, 80);
+    }, { passive: true });
+    track.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(cur + 1); restart(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); go(cur - 1); restart(); }
+    });
+    ['mouseenter', 'focusin', 'touchstart'].forEach(function (ev) { car.addEventListener(ev, function () { paused = true; }, { passive: true }); });
+    ['mouseleave', 'focusout'].forEach(function (ev) { car.addEventListener(ev, function () { paused = false; }); });
+    mark(0); restart();
+  });
+
+  // ---- scroll reveal for rails, cards and boxes
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, { rootMargin: '0px 0px -40px 0px' });
+    $$('.row, .story, .side .box, .timeline li').forEach(function (el) { el.classList.add('reveal'); io.observe(el); });
+  }
+
+  // ---- back to top
+  var topBtn = $('.to-top');
+  if (topBtn) {
+    var onScroll = function () { topBtn.classList.toggle('is-on', window.scrollY > 900); };
+    window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+    topBtn.addEventListener('click', function (e) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
 
   // ---- relative times

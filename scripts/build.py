@@ -508,12 +508,21 @@ def support_methods(m: dict) -> dict:
     }
 
 
+T["en"].update({"top": "Top stories", "latest": "Latest", "see_all": "See all", "browse": "Browse all {n} stories",
+                "more": "Show more stories", "prev": "Previous", "next": "Next", "slide": "Story {n}", "top_btn": "Back to top",
+                "quick_rates": "AUD to NPR today", "quick_visa": "Visa news", "quick_check": "Check an agent",
+                "quick_support": "Support us", "home_view": "Back to sections"})
+T["ne"].update({"top": "मुख्य समाचार", "latest": "ताजा", "see_all": "सबै हेर्नुहोस्", "browse": "सबै {n} समाचार हेर्नुहोस्",
+                "more": "थप समाचार", "prev": "अघिल्लो", "next": "अर्को", "slide": "समाचार {n}", "top_btn": "माथि जानुहोस्",
+                "quick_rates": "आजको AUD दर", "quick_visa": "भिसा समाचार", "quick_check": "एजेन्ट जाँच",
+                "quick_support": "सहयोग", "home_view": "खण्डहरूमा फर्कनुहोस्"})
+
 def has_support(m: dict) -> bool:
     sm = support_methods(m)
     return bool(sm["stripe"] or sm["qr"] or sm["crypto"]) or os.environ.get("SHOW_AD_PLACEHOLDERS") == "1"
 
 
-THEME_BOOT = ("<script>try{var t=localStorage.getItem('nn-theme');if(t)document.documentElement.dataset.theme=t;}"
+THEME_BOOT = ("<script>document.documentElement.classList.add('js');try{var t=localStorage.getItem('nn-theme');if(t)document.documentElement.dataset.theme=t;}"
               "catch(e){}</script>")
 
 
@@ -634,6 +643,7 @@ def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
   </div>
 </footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<a class="to-top" href="#main" aria-label="{t['top_btn']}" title="{t['top_btn']}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 15l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
 <script src="app.js" defer></script>
 </body>
 </html>
@@ -730,6 +740,84 @@ def render_support(cfg: dict, lang: str) -> str:
     return page_shell(cfg, lang, "support", f"{t['support_h']} | {s['title']}", body, description=t["support_lead"])
 
 
+def _pic(it: dict, lang: str, *, eager: bool = False) -> str:
+    t = T[lang]
+    cat = it.get("category", "")
+    ph = f"img/ph-{cat}.svg" if cat else "img/ph-visa.svg"
+    img = it.get("image") or ""
+    credit = esc(t["image_by"].format(src=it["source"]))
+    if not img and it.get("gen"):
+        img, credit = it["gen"], esc(t["illustration"])
+    if not img:
+        return f'<img class="thumb" src="{ph}" alt="" loading="lazy" decoding="async"><span class="credit" hidden></span>'
+    return (f'<img class="thumb" src="{esc(img)}" alt="" loading="{"eager" if eager else "lazy"}" decoding="async" '
+            f'referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'{ph}\';this.nextElementSibling.hidden=true">'
+            f'<span class="credit">{credit}</span>')
+
+
+def mini_card(it: dict, lang: str, cats: dict, colors: dict) -> str:
+    """Compact card for the swipeable topic rows."""
+    title, _ = item_text(it, lang)
+    cat = it.get("category", "")
+    color = colors.get(cat) or DEFAULT_CAT_COLORS.get(cat, "#64748b")
+    when = (f'<time datetime="{esc(it["published"])}" data-relative>{esc(nepal_time(it["published"]))}</time>'
+            if it.get("published") else "")
+    title_lang = "ne" if (lang == "ne" and it.get("title_ne")) or it.get("lang") == "ne" else "en"
+    return f"""<article class="mini" style="--c:{esc(color)}">
+  <a href="{esc(it["link"])}" target="_blank" rel="noopener nofollow">
+    <span class="pic">{_pic(it, lang)}<span class="pill">{esc(cats.get(cat, cat))}</span></span>
+    <span class="mini-body"><strong lang="{title_lang}">{esc(title)}</strong>
+    <span class="meta"><span class="source">{esc(it["source"])}</span>{when}</span></span>
+  </a>
+</article>"""
+
+
+def carousel(items: list[dict], lang: str, cats: dict, colors: dict) -> str:
+    """Hero slider of the newest stories that have a picture. Swipes natively; app.js adds autoplay and arrows."""
+    t = T[lang]
+    picks = [i for i in items[:30] if i.get("image") or i.get("gen")][:6] or items[:5]
+    if not picks:
+        return ""
+    slides, dots = [], []
+    for n, it in enumerate(picks):
+        title, summary = item_text(it, lang)
+        cat = it.get("category", "")
+        color = colors.get(cat) or DEFAULT_CAT_COLORS.get(cat, "#64748b")
+        title_lang = "ne" if (lang == "ne" and it.get("title_ne")) or it.get("lang") == "ne" else "en"
+        when = (f'<time datetime="{esc(it["published"])}" data-relative>{esc(nepal_time(it["published"]))}</time>'
+                if it.get("published") else "")
+        slides.append(f"""<article class="slide" id="slide-{n + 1}" style="--c:{esc(color)}" aria-roledescription="slide" aria-label="{esc(t['slide'].format(n=n + 1))}">
+  <a class="slide-link" href="{esc(it["link"])}" target="_blank" rel="noopener nofollow">
+    <span class="pic">{_pic(it, lang, eager=n == 0)}</span>
+    <span class="slide-text"><span class="pill">{esc(cats.get(cat, cat))}</span>
+      <strong lang="{title_lang}">{esc(title)}</strong>
+      <span class="slide-sum">{esc(summary[:180])}</span>
+      <span class="meta"><span class="source">{esc(it["source"])}</span>{when}</span></span>
+  </a>
+</article>""")
+        dots.append(f'<a class="dot" href="#slide-{n + 1}" aria-label="{esc(t["slide"].format(n=n + 1))}"></a>')
+    arrow = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    return f"""<section class="carousel" aria-roledescription="carousel" aria-label="{t['top']}">
+  <div class="slides" tabindex="0">{''.join(slides)}</div>
+  <button class="car-btn car-prev" type="button" aria-label="{t['prev']}" hidden>{arrow}</button>
+  <button class="car-btn car-next" type="button" aria-label="{t['next']}" hidden>{arrow}</button>
+  <div class="dots">{''.join(dots)}</div>
+</section>"""
+
+
+def topic_row(row_id: str, label: str, color: str, items: list[dict], lang: str, cats: dict, colors: dict, *, cat: str = "") -> str:
+    t = T[lang]
+    if not items:
+        return ""
+    see = (f'<button class="see-all" type="button" data-pick="{esc(cat)}">{t["see_all"]} <span aria-hidden="true">→</span></button>'
+           if cat else "")
+    cards = "".join(mini_card(i, lang, cats, colors) for i in items)
+    return f"""<section class="row" style="--c:{esc(color)}" aria-labelledby="h-{row_id}">
+  <div class="row-head"><h2 id="h-{row_id}">{esc(label)}</h2>{see}</div>
+  <div class="rail">{cards}</div>
+</section>"""
+
+
 def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str, forex: list[dict] | None = None) -> str:
     s, m, t = cfg["site"], cfg["monetization"], T[lang]
     cats = {c["id"]: tr(c.get("label_i18n") or {"en": c["label"]}, lang) for c in cfg["categories"]}
@@ -743,9 +831,12 @@ def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str, fo
             chips.append(f'<button class="chip" type="button" data-cat="{esc(c["id"])}" aria-pressed="false" '
                          f'style="--c:{esc(colors[c["id"]])}">{esc(cats[c["id"]])} <span class="count">{n}</span></button>')
 
-    hero_idx = next((n for n, i in enumerate(items[:6]) if i.get("image")), 0 if items else None)
-    hero = story_card(items[hero_idx], lang, cats, hero=True, colors=colors) if hero_idx is not None else ""
-    rest = [it for n, it in enumerate(items) if n != hero_idx]
+    hero = carousel(items, lang, cats, colors)
+    rows = [topic_row("latest", t["latest"], "#c8102e", items[:12], lang, cats, colors)]
+    for c in cfg["categories"]:
+        pick = [i for i in items if i["category"] == c["id"]][:12]
+        rows.append(topic_row(c["id"], cats[c["id"]], colors[c["id"]], pick, lang, cats, colors, cat=c["id"]))
+    rest = items
 
     cards = []
     every = max(int(m.get("ad_every_n_items") or 0), 0)
@@ -795,7 +886,14 @@ def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str, fo
       <p class="updated"><span class="live-dot" aria-hidden="true"></span>{t['updated']} <time datetime="{built_at.isoformat()}" data-relative>{esc(nepal_time(built_at.isoformat()))}</time> · {counts}</p>
       {machine}
     </div>
+    <nav class="quick" aria-label="{t['headlines']}">
+      <a class="q-rates" href="{page_file('rates', lang)}"><span aria-hidden="true">₨</span>{t['quick_rates']}</a>
+      <a class="q-visa" href="{page_file('visa', lang)}"><span aria-hidden="true">✈</span>{t['quick_visa']}</a>
+      <a class="q-check" href="{page_file('check-agent', lang)}"><span aria-hidden="true">✓</span>{t['quick_check']}</a>
+      {f'<a class="q-support" href="{page_file("support", lang)}"><span aria-hidden="true">♥</span>{t["quick_support"]}</a>' if has_support(m) else ''}
+    </nav>
   </section>
+  {hero}
   {top_ad}
   <div class="toolbar">
     <div class="chips" role="toolbar" aria-label="Filter by topic">{''.join(chips)}</div>
@@ -803,12 +901,19 @@ def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str, fo
       <input type="search" id="q" placeholder="{t['search']}" aria-label="{t['search']}" autocomplete="off"></label>
   </div>
   <div class="layout">
-    <div class="feed">
-      {hero}
-      <div class="stories">
-{chr(10).join(cards)}
+    <div class="feed" data-view="rows">
+      <div class="rows">
+{chr(10).join(r for r in rows if r)}
+        <p class="browse-wrap"><button class="btn btn-browse" type="button" data-pick="all">{t['browse'].format(n=len(items))} <span aria-hidden="true">→</span></button></p>
       </div>
-      <p class="empty no-match" hidden>{t['no_match']}</p>
+      <div class="grid-view" id="grid">
+        <p class="back-wrap"><button class="btn btn-ghost back-rows" type="button">← {t['home_view']}</button></p>
+        <div class="stories">
+{chr(10).join(cards)}
+        </div>
+        <p class="empty no-match" hidden>{t['no_match']}</p>
+        <p class="more-wrap"><button class="btn btn-browse show-more" type="button" hidden>{t['more']}</button></p>
+      </div>
     </div>
     <aside class="side">
       <section class="box notice"><h3>{t['news_not_advice']}</h3><p>{t['news_not_advice_p']}</p></section>
