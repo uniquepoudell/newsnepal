@@ -65,7 +65,7 @@ def cloudflare(prompt: str, seed: int, timeout: int = 60) -> bytes:
     if not acct or not token:
         raise RuntimeError("no Cloudflare secrets")
     url = f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell"
-    body = json.dumps({"prompt": prompt, "steps": 6, "seed": seed}).encode()
+    body = json.dumps({"prompt": prompt, "steps": 6}).encode()  # FLUX schnell rejects a "seed" field
     req = urllib.request.Request(url, data=body, method="POST", headers={
         "Authorization": f"Bearer {token}", "Content-Type": "application/json", "User-Agent": UA})
     try:
