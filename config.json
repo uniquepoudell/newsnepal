@@ -218,7 +218,7 @@
   "translation": {
     "_help": "Nepali translation of headlines and summaries with the Claude API. Needs the ANTHROPIC_API_KEY secret (see GUIDE.md). Each story is translated once and saved; max_per_build caps cost per hourly run. Set enabled to false to turn it off.",
     "enabled": true,
-    "model": "claude-opus-5-5",
+    "model": "claude-haiku-5-5",
     "effort": "low",
     "max_per_build": 40,
     "batch_size": 15
