@@ -136,7 +136,7 @@ Without the secret the site still builds; Nepali pages show the English headline
 
 **Cost control** is in `config.json` under `translation`:
 
-- `model`: which Claude model translates. `claude-opus-5-5` gives the best Nepali; `claude-haiku-5-5` costs far less.
+- `model`: which Claude model translates. It is set to `claude-haiku-5-5` (low cost). Change it to `claude-opus-5-5` for the most natural Nepali, at a much higher cost.
 - `max_per_build`: the most stories sent in one hourly run (default 40).
 - `enabled`: set to `false` to stop translating.
 
