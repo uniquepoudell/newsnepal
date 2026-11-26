@@ -88,7 +88,8 @@ with tempfile.TemporaryDirectory() as tmp:
     page = (tmp / "out" / "index.html").read_text()
     assert "https://img.example.com/btc.jpg" in page and "Image: CryptoFeed" in page
     assert "Illustration: News Nepal (AI)" in page and nrb["gen"] in page
-    assert 'class="story hero"' in page
+    assert 'class="carousel"' in page and 'class="slide"' in page and 'class="rail"' in page and 'data-pick="crypto"' in page
+    assert 'class="to-top"' in page and 'class="quick"' in page and page.count('class="story"') == len(res["items"])
     assert "buy.stripe.com/test_123" in page and "support-qr.png" in page and "Support News Nepal" in page
     assert 'id="q"' in page and 'id="theme-toggle"' in page and "wa.me" in page and 'data-coin="bitcoin"' in page
     support = (tmp / "out" / "support.html").read_text()
