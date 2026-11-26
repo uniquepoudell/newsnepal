@@ -267,6 +267,7 @@
   "visa": {
     "_help": "Australia visa section. Stories must match an 'include' word AND a 'require' word (Australia). Nepali words match inside longer words. featured_agents are paid listings: only add agents whose MARN you have checked on the official register.",
     "max_items": 60,
+    "max_age_days": 45,
     "adsense_slot_top": "",
     "sponsor": {
       "text": "",
@@ -351,7 +352,8 @@
         "name": "SBS Nepali",
         "url": "https://news.google.com/rss/search?q=site:sbs.com.au/language/nepali&hl=en-AU&gl=AU&ceid=AU:en",
         "category": "visa",
-        "filter": true
+        "filter": true,
+        "skip_require": true
       },
       {
         "name": "Kathmandu Post diaspora",
