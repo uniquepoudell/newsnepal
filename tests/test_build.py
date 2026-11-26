@@ -116,3 +116,15 @@ with tempfile.TemporaryDirectory() as tmp:
     assert len(CALLS) == n_calls, "stories were translated twice"
     assert all(i.get("title_ne") for i in res2["items"]), "translations lost between builds"
 print("OK: all checks passed")
+
+# Forex fallback: when NRB is unreachable, market rates are converted to rupees per unit.
+_orig_fetch, _orig_nrb = build.fetch, build._nrb_rates
+build.fetch = lambda url, timeout=25: json.dumps({"rates": {"USD": 1, "NPR": 134.0, "AUD": 1.5, "INR": 84.0}}).encode()
+build._nrb_rates = lambda wanted: (_ for _ in ()).throw(ConnectionError("closed"))
+os.environ.pop("NO_FOREX", None)
+fx_rates = {r["code"]: r for r in build.fetch_forex({"ticker": {"forex": ["USD", "AUD", "INR"]}})}
+assert round(fx_rates["USD"]["sell"], 2) == 134.0 and round(fx_rates["AUD"]["sell"], 2) == 89.33, fx_rates
+assert fx_rates["INR"]["unit"] == 100 and round(fx_rates["INR"]["sell"], 2) == 159.52 and fx_rates["USD"]["src"] == "market"
+assert "market rate" in build.render_ticker({"ticker": {"coins": []}}, list(fx_rates.values()), "en")
+build.fetch, build._nrb_rates = _orig_fetch, _orig_nrb
+print("OK: forex fallback")

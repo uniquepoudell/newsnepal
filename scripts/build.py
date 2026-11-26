@@ -341,7 +341,7 @@ T = {
         "support_lead": "News Nepal is free and has no paywall. If it helps you follow Nepal's economy, remittances, visas and digital money, a small payment keeps the site running and growing.",
         "support_fine": "Payments are voluntary tips to support the site. They don't buy advice, access or any financial product.",
         "support_soon": "Support options are coming soon.",
-        "markets": "Markets", "nrb_sell": "NRB sell", "theme": "Light / dark", "share": "Share",
+        "markets": "Markets", "nrb_sell": "NRB sell", "mid_rate": "market rate", "theme": "Light / dark", "share": "Share",
         "updates": "Get updates", "updates_p": "Follow every new story in your feed reader.", "rss": "RSS feed",
         "skip": "Skip to stories", "footer_images": "Images belong to the publishers credited on each story.",
     },
@@ -370,7 +370,7 @@ T = {
         "support_lead": "न्युज नेपाल निःशुल्क छ। नेपालको अर्थतन्त्र, रेमिट्यान्स, भिसा र डिजिटल मुद्राबारे जानकारी पाउन यसले सहयोग गरेको छ भने सानो भुक्तानीले साइट चलाउन र बढाउन मद्दत गर्छ।",
         "support_fine": "भुक्तानी साइटका लागि स्वैच्छिक सहयोग हो। यसले कुनै सल्लाह, पहुँच वा वित्तीय सेवा किन्दैन।",
         "support_soon": "सहयोगका तरिका चाँडै आउँदैछन्।",
-        "markets": "बजार", "nrb_sell": "राष्ट्र बैंक बिक्री", "theme": "उज्यालो / अँध्यारो", "share": "सेयर",
+        "markets": "बजार", "nrb_sell": "राष्ट्र बैंक बिक्री", "mid_rate": "बजार दर", "theme": "उज्यालो / अँध्यारो", "share": "सेयर",
         "updates": "अपडेट पाउनुहोस्", "updates_p": "हरेक नयाँ समाचार आफ्नो फिड रिडरमा पाउनुहोस्।", "rss": "RSS फिड",
         "skip": "समाचारमा जानुहोस्", "footer_images": "तस्बिरहरू हरेक समाचारमा उल्लेख गरिएका प्रकाशकका हुन्।",
     },
@@ -445,30 +445,52 @@ font-size="26" font-weight="700" fill="#fff">{esc(label)}</text></svg>
 """
 
 
+def _nrb_rates(wanted: list[str]) -> list[dict]:
+    today = datetime.now(NEPAL_TZ).date()
+    url = (f"https://www.nrb.org.np/api/forex/v1/rates?page=1&per_page=5"
+           f"&from={today - timedelta(days=4)}&to={today}")
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36",
+        "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    days = data["data"]["payload"]
+    days.sort(key=lambda d: d.get("date", ""), reverse=True)
+    rates = {r["currency"]["iso3"].upper(): r for r in days[0]["rates"]}
+    return [{"code": c, "unit": int(rates[c]["currency"].get("unit") or 1), "buy": float(rates[c]["buy"]),
+             "sell": float(rates[c]["sell"]), "date": days[0]["date"], "src": "nrb"} for c in wanted if c in rates]
+
+
+def _market_rates(wanted: list[str]) -> list[dict]:
+    """Fallback: free daily mid-market rates (open.er-api.com, no key), shown as NPR per unit."""
+    data = json.loads(fetch("https://open.er-api.com/v6/latest/USD", timeout=15))
+    r = data["rates"]
+    npr = float(r["NPR"])
+    out = []
+    for c in wanted:
+        if c in r and float(r[c]):
+            unit = 100 if c == "INR" else 1
+            mid = npr / float(r[c]) * unit
+            out.append({"code": c, "unit": unit, "buy": mid, "sell": mid, "date": "", "src": "market"})
+    return out
+
+
 def fetch_forex(cfg: dict) -> list[dict]:
-    """Today's Nepal Rastra Bank exchange rates for the ticker (free public API). Empty on any failure."""
+    """Rupee exchange rates for the ticker: Nepal Rastra Bank first, a free market-rate API if NRB is unreachable.
+    Empty on any failure, which hides that part of the strip."""
     t = cfg.get("ticker") or {}
     wanted = [c.upper() for c in t.get("forex", [])]
     if not wanted or os.environ.get("NO_FOREX") == "1":
         return []
-    today = datetime.now(NEPAL_TZ).date()
-    url = (f"https://www.nrb.org.np/api/forex/v1/rates?page=1&per_page=5"
-           f"&from={today - timedelta(days=4)}&to={today}")
-    try:
-        data = json.loads(fetch(url, timeout=15))
-        days = data["data"]["payload"]
-        days.sort(key=lambda d: d.get("date", ""), reverse=True)
-        rates = {r["currency"]["iso3"].upper(): r for r in days[0]["rates"]}
-        out = []
-        for code in wanted:
-            r = rates.get(code)
-            if r:
-                out.append({"code": code, "unit": int(r["currency"].get("unit") or 1),
-                            "buy": float(r["buy"]), "sell": float(r["sell"]), "date": days[0]["date"]})
-        return out
-    except Exception as e:
-        print(f"  (forex rates unavailable: {type(e).__name__}: {e})")
-        return []
+    for name, fn in (("Nepal Rastra Bank", _nrb_rates), ("market rates", _market_rates)):
+        try:
+            out = fn(wanted)
+            if out:
+                print(f"  forex: {len(out)} rates from {name}")
+                return out
+        except Exception as e:
+            print(f"  (forex from {name} unavailable: {type(e).__name__}: {e})")
+    return []
 
 
 def support_methods(m: dict) -> dict:
@@ -519,11 +541,11 @@ def render_ticker(cfg: dict, forex: list[dict], lang: str = "en") -> str:
     for r in forex:
         unit = f'{r["unit"]} ' if r["unit"] != 1 else ""
         cells.append(f'<span class="tk"><b>{esc(unit + r["code"])}</b> Rs {r["sell"]:,.2f}'
-                     f'<small>{T[lang]["nrb_sell"]}</small></span>')
+                     f'<small>{T[lang]["nrb_sell"] if r.get("src") == "nrb" else T[lang]["mid_rate"]}</small></span>')
     for c in coins:
         cells.append(f'<span class="tk tk-coin" data-coin="{esc(c["id"])}"><b>{esc(c.get("symbol", c["id"]).upper())}</b>'
                      f' <span class="px">…</span><span class="chg"></span></span>')
-    note = esc(t.get("note", "Exchange rates from Nepal Rastra Bank. Coin prices from CoinGecko, shown as market news only."))
+    note = esc(t.get("note", "Exchange rates from Nepal Rastra Bank (or market rates when NRB is unreachable). Coin prices from CoinGecko, shown as market news only."))
     vs = esc((t.get("coin_currency") or "usd").lower())
     strip = "".join(cells)
     return (f'<div class="ticker" data-vs="{vs}" title="{note}"><div class="wrap ticker-in">'
@@ -1189,8 +1211,7 @@ def enrich_images(cfg: dict, items: list[dict]) -> None:
             it["image"] = og_image(it["link"])
         except Exception:
             it["image"] = ""
-    if done:
-        print(f"  looked up {done} article images, {sum(1 for i in items if i.get('image'))} of {len(items)} stories have one")
+    print(f"  images: looked up {done} article pages; {sum(1 for i in items if i.get('image'))} of {len(items)} stories have a picture")
 
 
 def write_placeholders(cfg: dict, out: Path) -> None:
