@@ -198,10 +198,31 @@ Optional: add `"message_ne"`, `"stripe_button_text_ne"` or `"nepal_qr_label_ne"`
 - **Story images** come from each publisher's feed (media:content, enclosure or the first picture in the story).
   If the feed has none, the build reads the article's own preview picture (og:image), up to 30 new articles
   per hourly build (`images.og_lookups_per_build`). Each picture is credited "Image: <publisher>" and links to
-  the original article. Google News stories have no image, so they show a branded News Nepal picture.
+  the original article. Google News stories have no image, so they get an AI illustration (Part 8) or a branded picture.
   If a publisher asks you to stop showing its pictures, set `"enabled": false` on its feed.
 - **Logo**: `static/logo.svg` (full) and `static/logo-mark.svg` (square icon, also the favicon). They are original
   vector files you can reuse for social media profiles.
 - **Price strip**: exchange rates come from Nepal Rastra Bank's free daily API at build time; BTC, ETH and USDT
   prices load live from CoinGecko's free API in the reader's browser. Change the lists under `ticker`, or empty
   them to hide the strip. Prices are shown as market news only.
+
+## Part 8. AI illustrations for stories without a picture
+
+Stories whose publisher gives no picture (most Google News stories) get an original illustration in one
+News Nepal style: hand-drawn comic look, crimson, blue and gold colours, no text and no real people. Each one is
+made once per story, labelled "Illustration: News Nepal (AI)", and reused on every later build. Publisher
+pictures are always used first, with their credit. Change the look with `images.generate.style` in config.json.
+
+Until you add the Cloudflare secrets below, those stories show the branded News Nepal picture.
+(A free no-key service was tested but now charges, so it isn't used.)
+
+**Set up Cloudflare Workers AI (free for this site's volume), about 5 minutes.** You already use Cloudflare for gorkhapay.
+1. Sign in at dash.cloudflare.com. Copy your **Account ID** (right side of the Account home page, or Workers & Pages overview).
+2. Go to **My Profile → API Tokens → Create Token → Custom token**. Give it the permission
+   **Account → Workers AI → Read**, choose your account, and create it. Copy the token (shown once).
+3. In GitHub open the newsnepal repo → **Settings → Secrets and variables → Actions → New repository secret**.
+   Add `CLOUDFLARE_ACCOUNT_ID` with the account ID, and `CLOUDFLARE_AI_TOKEN` with the token.
+The free Workers plan includes 10,000 "neurons" a day, enough for about 50 to 150 pictures a day with the
+FLUX.1 schnell model. The site makes at most 6 per hour (`images.generate.per_build`). Above the free amount
+the free plan simply stops for the day (no bill); on the paid Workers plan (US$5/month) extra pictures cost
+about US$0.001 to US$0.002 each.
