@@ -3,6 +3,20 @@
 Rank by: more readers or more income per hour of work. Keep each item small enough for one run, or split it.
 
 ## Next
+0a. **Fast-money pivot (owner, 2026-11-26: "find something which can earn asap").** The site gets almost no
+    visitors, and a news aggregator ranks poorly in Google because the stories are on other sites too. Build
+    daily *utility* pages that people search every day and that we can fill from official or open data:
+    - "AUD to NPR today" and "NRB exchange rate today" pages (we already fetch NRB rates), with a link to the
+      GorkhaPay comparison for sending money.
+    - "Gold and silver price today in Nepal" (only from the official FENEGOSIDA published rate; skip if no
+      reliable source can be read automatically).
+    - "IPO calendar Nepal": open and upcoming IPOs from the NEPSE / SEBON news we already collect, with links to
+      the official result checker (never ask readers for their BOID or login).
+0b. **Daily share card.** Each build makes a square "Today in Nepal money" image (rates, NEPSE line, 3 headlines)
+    and a caption in English and Nepali, saved at `/share/today.png` and `/share/today.txt`, so the owner can post
+    it to Facebook, TikTok or Viber groups in 30 seconds. Never post automatically.
+0c. **Sell what we already have.** Link the GorkhaPay checklists (A$5, already on sale) from visa stories and the
+    visa pages, as a clearly labelled product box.
 1. **Story and topic pages for search traffic.** Topic pages (`/topic/nepse.html`, `/topic/nrb.html`,
    `/topic/bitcoin.html`, `/topic/student-visa.html`…) with their own title, description, intro paragraph and the
    matching stories. Add them to the sitemap and nav. Search engines rank pages, not one long home page.
