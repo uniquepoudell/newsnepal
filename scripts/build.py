@@ -9,6 +9,8 @@ static site to ./public in English and Nepali:
   check-agent.html / check-agent.ne.html     "check your migration agent" tool
   visa-changes-2026(.ne).html, visa-scams(.ne).html   guides
   about.html / about.ne.html                 what the site is, plus the legal disclaimer
+  support.html / support.ne.html             ways readers pay: card (Stripe), Nepal QR (eSewa/Fonepay), crypto
+  img/ph-*.svg                               branded pictures for stories whose publisher gave no image
   items.json, visa-items.json                stories as data (keeps history and translations)
   feed.xml                                   the site's own RSS feed
   robots.txt, sitemap.xml, ads.txt (when an AdSense id is set), CNAME (when a domain is set)
@@ -30,6 +32,7 @@ import shutil
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
+from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from pathlib import Path
@@ -125,6 +128,88 @@ def fetch(url: str, timeout: int = 25) -> bytes:
         return resp.read()
 
 
+# --------------------------------------------------------------------------- images
+
+IMG_EXT = re.compile(r"\.(jpe?g|png|webp|gif|avif)(\?|$)", re.IGNORECASE)
+
+
+def clean_image_url(url: str | None) -> str:
+    """Only https images are used (an http image breaks the padlock on an https site)."""
+    url = html.unescape((url or "").strip())
+    if url.startswith("//"):
+        url = "https:" + url
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    if not url.startswith("https://") or len(url) > 1000 or any(c in url for c in ' "<>'):
+        return ""
+    return url
+
+
+def _first_img_in_html(text: str) -> str:
+    m = re.search(r"<img\b[^>]*?\bsrc\s*=\s*[\"']([^\"']+)[\"']", text or "", re.IGNORECASE)
+    return m.group(1) if m else ""
+
+
+def find_image(e, summary_html: str = "") -> str:
+    """The story's own image from the feed: media:content, media:thumbnail, an image
+    enclosure, or the first <img> in the summary or full content."""
+    candidates: list[str] = []
+    for mc in list(e.iter(f"{MEDIA}content")):
+        medium, typ, url = mc.get("medium", ""), mc.get("type", ""), mc.get("url", "")
+        if medium == "image" or typ.startswith("image/") or (not medium and not typ and IMG_EXT.search(url)):
+            candidates.append(url)
+    for mt in e.iter(f"{MEDIA}thumbnail"):
+        candidates.append(mt.get("url", ""))
+    for enc in e.findall("enclosure") + [l for l in e.findall(f"{ATOM}link") if l.get("rel") == "enclosure"]:
+        typ, url = enc.get("type", ""), enc.get("url") or enc.get("href") or ""
+        if typ.startswith("image/") or (not typ and IMG_EXT.search(url)):
+            candidates.append(url)
+    for path in ("description", f"{CONTENT}encoded", f"{ATOM}content", f"{ATOM}summary"):
+        el = e.find(path)
+        if el is not None and el.text:
+            candidates.append(_first_img_in_html(el.text))
+    candidates.append(_first_img_in_html(summary_html))
+    for c in candidates:
+        url = clean_image_url(c)
+        if url:
+            return url
+    return ""
+
+
+class _MetaImage(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.found: dict[str, str] = {}
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "meta":
+            return
+        a = {k.lower(): (v or "") for k, v in attrs}
+        key = (a.get("property") or a.get("name") or "").lower()
+        if key in ("og:image", "og:image:secure_url", "twitter:image", "twitter:image:src") and a.get("content"):
+            self.found.setdefault(key, a["content"])
+
+
+def og_image(url: str, timeout: int = 8) -> str:
+    """The article's own preview image (og:image), read from the first part of its page."""
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        if "html" not in (resp.headers.get("Content-Type") or "html"):
+            return ""
+        head = resp.read(300_000).decode("utf-8", "replace")
+    head = head.split("</head>", 1)[0]
+    parser = _MetaImage()
+    try:
+        parser.feed(head)
+    except Exception:
+        return ""
+    for key in ("og:image:secure_url", "og:image", "twitter:image", "twitter:image:src"):
+        img = clean_image_url(parser.found.get(key))
+        if img:
+            return img
+    return ""
+
+
 def parse_feed(data: bytes, feed: dict) -> list[dict]:
     root = ET.fromstring(data)
     items: list[dict] = []
@@ -144,6 +229,7 @@ def parse_feed(data: bytes, feed: dict) -> list[dict]:
                 "summary_html": _text(e, f"{ATOM}summary", f"{ATOM}content"),
                 "date": _text(e, f"{ATOM}published", f"{ATOM}updated"),
                 "source": feed["name"],
+                "image": find_image(e),
             })
     else:
         channel = root.find("channel")
@@ -163,6 +249,7 @@ def parse_feed(data: bytes, feed: dict) -> list[dict]:
                 "summary_html": summary_html,
                 "date": _text(e, "pubDate", f"{DC}date"),
                 "source": source,
+                "image": "" if is_google else find_image(e),
             })
 
     out = []
@@ -181,6 +268,7 @@ def parse_feed(data: bytes, feed: dict) -> list[dict]:
             "feed": feed["name"],
             "category": feed.get("category", "crypto"),
             "lang": feed.get("lang", "en"),
+            "image": it.get("image", ""),
         })
     return out
 
@@ -244,6 +332,18 @@ T = {
         "footer_visa": "<strong>General information only, not migration advice.</strong> News Nepal is not a migration agent or law firm and cannot advise on your visa. For advice about your own situation, use a registered migration agent or an Australian lawyer. Always check rules on the official Home Affairs website.",
         "footer_own": "Headlines and summaries belong to their publishers.", "contact": "Contact",
         "machine": "",
+        "search": "Search stories", "no_match": "No stories match. Try another word or topic.",
+        "support_btn": "Support", "support_h": "Support News Nepal", "image_by": "Image: {src}",
+        "support_msg": "News Nepal is free. If it helps you, a small tip keeps it running.",
+        "all_ways": "All ways to support →", "crypto_tips": "Crypto tips (from outside Nepal)", "crypto": "Crypto",
+        "qr_label": "In Nepal? Scan with eSewa, Khalti or any Fonepay bank app.",
+        "pay_card": "Pay by card (AUD)", "stripe_note": "Secure card, Apple Pay and Google Pay checkout by Stripe.",
+        "support_lead": "News Nepal is free and has no paywall. If it helps you follow Nepal's economy, remittances, visas and digital money, a small payment keeps the site running and growing.",
+        "support_fine": "Payments are voluntary tips to support the site. They don't buy advice, access or any financial product.",
+        "support_soon": "Support options are coming soon.",
+        "markets": "Markets", "nrb_sell": "NRB sell", "theme": "Light / dark", "share": "Share",
+        "updates": "Get updates", "updates_p": "Follow every new story in your feed reader.", "rss": "RSS feed",
+        "skip": "Skip to stories", "footer_images": "Images belong to the publishers credited on each story.",
     },
     "ne": {
         "headlines": "समाचार", "visa": "अस्ट्रेलिया भिसा", "check": "एजेन्ट जाँच्नुहोस्", "about": "हाम्रोबारे",
@@ -261,6 +361,18 @@ T = {
         "footer_visa": "<strong>सामान्य जानकारी मात्र, माइग्रेसन सल्लाह होइन।</strong> न्युज नेपाल माइग्रेसन एजेन्ट वा कानुनी फर्म होइन र तपाईंको भिसाबारे सल्लाह दिन सक्दैन। आफ्नो अवस्थाबारे सल्लाहका लागि दर्ता भएको माइग्रेसन एजेन्ट वा अस्ट्रेलियाली वकिल प्रयोग गर्नुहोस्। नियम सधैं गृह मामिला विभागको आधिकारिक वेबसाइटमा जाँच्नुहोस्।",
         "footer_own": "शीर्षक र सारांश सम्बन्धित प्रकाशकका हुन्।", "contact": "सम्पर्क",
         "machine": "शीर्षक र सारांश स्वचालित रूपमा अनुवाद गरिएका हुन्, त्यसैले सानातिना गल्ती हुन सक्छन्। मूल लेख अंग्रेजीमा छ।",
+        "search": "समाचार खोज्नुहोस्", "no_match": "कुनै समाचार भेटिएन। अर्को शब्द वा विषय प्रयोग गर्नुहोस्।",
+        "support_btn": "सहयोग", "support_h": "न्युज नेपाललाई सहयोग गर्नुहोस्", "image_by": "तस्बिर: {src}",
+        "support_msg": "न्युज नेपाल निःशुल्क छ। उपयोगी लागेमा सानो सहयोगले यसलाई चलाइराख्छ।",
+        "all_ways": "सहयोगका सबै तरिका →", "crypto_tips": "क्रिप्टो सहयोग (नेपालबाहिरबाट मात्र)", "crypto": "क्रिप्टो",
+        "qr_label": "नेपालमा हुनुहुन्छ? eSewa, Khalti वा कुनै पनि Fonepay बैंक एपबाट स्क्यान गर्नुहोस्।",
+        "pay_card": "कार्डबाट तिर्नुहोस् (AUD)", "stripe_note": "Stripe मार्फत सुरक्षित कार्ड, Apple Pay र Google Pay भुक्तानी।",
+        "support_lead": "न्युज नेपाल निःशुल्क छ। नेपालको अर्थतन्त्र, रेमिट्यान्स, भिसा र डिजिटल मुद्राबारे जानकारी पाउन यसले सहयोग गरेको छ भने सानो भुक्तानीले साइट चलाउन र बढाउन मद्दत गर्छ।",
+        "support_fine": "भुक्तानी साइटका लागि स्वैच्छिक सहयोग हो। यसले कुनै सल्लाह, पहुँच वा वित्तीय सेवा किन्दैन।",
+        "support_soon": "सहयोगका तरिका चाँडै आउँदैछन्।",
+        "markets": "बजार", "nrb_sell": "राष्ट्र बैंक बिक्री", "theme": "उज्यालो / अँध्यारो", "share": "सेयर",
+        "updates": "अपडेट पाउनुहोस्", "updates_p": "हरेक नयाँ समाचार आफ्नो फिड रिडरमा पाउनुहोस्।", "rss": "RSS फिड",
+        "skip": "समाचारमा जानुहोस्", "footer_images": "तस्बिरहरू हरेक समाचारमा उल्लेख गरिएका प्रकाशकका हुन्।",
     },
 }
 
@@ -306,8 +418,121 @@ def adsense_unit(m: dict, slot: str, label: str) -> str:
     return ""
 
 
+DEFAULT_CAT_COLORS = {"nepal": "#1d4fb8", "crypto": "#e07a00", "global": "#16915a", "visa": "#7c3aed"}
+FALLBACK_COLORS = ["#c8102e", "#0e7490", "#be185d", "#4d7c0f", "#7c3aed", "#b45309"]
+
+
+def cat_colors(cfg: dict) -> dict[str, str]:
+    out = {}
+    for n, c in enumerate(cfg.get("categories", [])):
+        out[c["id"]] = c.get("color") or DEFAULT_CAT_COLORS.get(c["id"]) or FALLBACK_COLORS[n % len(FALLBACK_COLORS)]
+    return out
+
+
+def placeholder_svg(label: str, color: str) -> str:
+    """Branded stand-in picture for stories whose publisher gave no image."""
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+<defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{esc(color)}"/>
+<stop offset="1" stop-color="#111827"/></linearGradient></defs>
+<rect width="640" height="360" fill="url(#b)"/>
+<path d="M0 300 L120 190 L200 250 L330 120 L440 230 L520 170 L640 260 V360 H0Z" fill="#fff" opacity=".10"/>
+<path d="M0 330 L150 240 L260 300 L380 210 L500 280 L640 220 V360 H0Z" fill="#fff" opacity=".08"/>
+<g transform="translate(288 118) scale(1)"><rect width="64" height="64" rx="15" fill="#fff" opacity=".95"/>
+<path d="M14 48 V18 L32 38 V22 L50 46" fill="none" stroke="{esc(color)}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="47" cy="19" r="5" fill="#ffd24a"/></g>
+<text x="320" y="228" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif"
+font-size="26" font-weight="700" fill="#fff">{esc(label)}</text></svg>
+"""
+
+
+def fetch_forex(cfg: dict) -> list[dict]:
+    """Today's Nepal Rastra Bank exchange rates for the ticker (free public API). Empty on any failure."""
+    t = cfg.get("ticker") or {}
+    wanted = [c.upper() for c in t.get("forex", [])]
+    if not wanted or os.environ.get("NO_FOREX") == "1":
+        return []
+    today = datetime.now(NEPAL_TZ).date()
+    url = (f"https://www.nrb.org.np/api/forex/v1/rates?page=1&per_page=5"
+           f"&from={today - timedelta(days=4)}&to={today}")
+    try:
+        data = json.loads(fetch(url, timeout=15))
+        days = data["data"]["payload"]
+        days.sort(key=lambda d: d.get("date", ""), reverse=True)
+        rates = {r["currency"]["iso3"].upper(): r for r in days[0]["rates"]}
+        out = []
+        for code in wanted:
+            r = rates.get(code)
+            if r:
+                out.append({"code": code, "unit": int(r["currency"].get("unit") or 1),
+                            "buy": float(r["buy"]), "sell": float(r["sell"]), "date": days[0]["date"]})
+        return out
+    except Exception as e:
+        print(f"  (forex rates unavailable: {type(e).__name__}: {e})")
+        return []
+
+
+def support_methods(m: dict) -> dict:
+    sup = m.get("support") or {}
+    don = m.get("donations") or {}
+    return {
+        "stripe": (sup.get("stripe_payment_link") or "").strip(),
+        "qr": (sup.get("nepal_qr_image") or "").strip(),
+        "crypto": [a for a in don.get("addresses", []) if a.get("address")],
+        "cfg": sup,
+        "don": don,
+    }
+
+
+def has_support(m: dict) -> bool:
+    sm = support_methods(m)
+    return bool(sm["stripe"] or sm["qr"] or sm["crypto"]) or os.environ.get("SHOW_AD_PLACEHOLDERS") == "1"
+
+
+THEME_BOOT = ("<script>try{var t=localStorage.getItem('nn-theme');if(t)document.documentElement.dataset.theme=t;}"
+              "catch(e){}</script>")
+
+
+SHARE_ICONS = {
+    "facebook": '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M14 8h3V4h-3c-2.8 0-4 1.7-4 4.3V10H7v4h3v8h4v-8h3l1-4h-4V8.6c0-.4.3-.6.6-.6z"/></svg>',
+    "whatsapp": '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.7 15l-1.3 5 5.1-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.6-.1 1.2z"/></svg>',
+    "x": '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.3L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8L17.8 3zm-1.1 16.2h1.7L7.4 4.7H5.5l11.2 14.5z"/></svg>',
+    "link": '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+}
+
+
+def share_bar(it: dict) -> str:
+    u, t = quote(it["link"], safe=""), quote(it["title"], safe="")
+    return (f'<div class="share" aria-label="Share">'
+            f'<a class="sh sh-fb" href="https://www.facebook.com/sharer/sharer.php?u={u}" target="_blank" rel="noopener" title="Share on Facebook">{SHARE_ICONS["facebook"]}</a>'
+            f'<a class="sh sh-wa" href="https://wa.me/?text={t}%20{u}" target="_blank" rel="noopener" title="Share on WhatsApp">{SHARE_ICONS["whatsapp"]}</a>'
+            f'<a class="sh sh-x" href="https://twitter.com/intent/tweet?text={t}&amp;url={u}" target="_blank" rel="noopener" title="Share on X">{SHARE_ICONS["x"]}</a>'
+            f'<button class="sh sh-copy" type="button" data-share="{esc(it["link"])}" data-title="{esc(it["title"])}" title="Copy link or share">{SHARE_ICONS["link"]}</button>'
+            f'</div>')
+
+
+def render_ticker(cfg: dict, forex: list[dict], lang: str = "en") -> str:
+    t = cfg.get("ticker") or {}
+    coins = [c for c in t.get("coins", []) if c.get("id")]
+    if not forex and not coins:
+        return ""
+    cells = []
+    for r in forex:
+        unit = f'{r["unit"]} ' if r["unit"] != 1 else ""
+        cells.append(f'<span class="tk"><b>{esc(unit + r["code"])}</b> Rs {r["sell"]:,.2f}'
+                     f'<small>{T[lang]["nrb_sell"]}</small></span>')
+    for c in coins:
+        cells.append(f'<span class="tk tk-coin" data-coin="{esc(c["id"])}"><b>{esc(c.get("symbol", c["id"]).upper())}</b>'
+                     f' <span class="px">…</span><span class="chg"></span></span>')
+    note = esc(t.get("note", "Exchange rates from Nepal Rastra Bank. Coin prices from CoinGecko, shown as market news only."))
+    vs = esc((t.get("coin_currency") or "usd").lower())
+    strip = "".join(cells)
+    return (f'<div class="ticker" data-vs="{vs}" title="{note}"><div class="wrap ticker-in">'
+            f'<span class="tk-label">{T[lang]["markets"]}</span><div class="tk-scroll"><div class="tk-track">{strip}</div></div>'
+            f'</div></div>')
+
+
 def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
-               description: str, kind: str = "crypto") -> str:
+               description: str, kind: str = "crypto", ticker: str = "") -> str:
     s, m, t = cfg["site"], cfg["monetization"], T[lang]
     base = s.get("base_url", "").rstrip("/")
     here = page_file(base_name, lang)
@@ -329,6 +554,11 @@ def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
         for b, label in nav)
     footer = t["footer_visa"] if kind == "visa" else t["footer_crypto"]
     contact = (f' · <a href="mailto:{esc(m["contact_email"])}">{t["contact"]}</a>') if m.get("contact_email") else ""
+    sup = has_support(m)
+    support_btn = (f'<a class="btn btn-support" href="{page_file("support", lang)}"><span aria-hidden="true">♥</span> '
+                   f'{t["support_btn"]}</a>' if sup else "")
+    support_link = f' · <a href="{page_file("support", lang)}">{t["support_btn"]}</a>' if sup else ""
+    tagline = s.get("tagline_ne") if lang == "ne" and s.get("tagline_ne") else s["tagline"]
     return f"""<!doctype html>
 <html lang="{lang}">
 <head>
@@ -336,6 +566,7 @@ def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(description)}">
+<meta name="theme-color" content="#c8102e">
 <meta property="og:title" content="{esc(title)}">
 <meta property="og:description" content="{esc(description)}">
 <meta property="og:type" content="website">
@@ -343,71 +574,166 @@ def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
 <link rel="alternate" type="application/rss+xml" title="{esc(s['title'])}" href="feed.xml">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+{THEME_BOOT}
 {ads_head}
 </head>
 <body>
+<a class="skip" href="#main">{t['skip']}</a>
 <header class="masthead">
-  <div class="wrap">
-    <a class="brand" href="{page_file('index', lang)}"><span class="logo" aria-hidden="true">₿</span>{esc(s['title'])}</a>
-    <nav>{nav_html}<a class="lang-switch" href="{other}" hreflang="{other_lang}" lang="{other_lang}">{t['switch']}</a></nav>
+  <div class="wrap bar">
+    <a class="brand" href="{page_file('index', lang)}"><img src="logo-mark.svg" width="40" height="40" alt="">
+      <span class="brand-text"><span class="b1">News</span><span class="b2">Nepal</span></span></a>
+    <nav class="nav">{nav_html}</nav>
+    <div class="actions">
+      <a class="lang-switch" href="{other}" hreflang="{other_lang}" lang="{other_lang}">{t['switch']}</a>
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="{t['theme']}" title="{t['theme']}">
+        <svg class="i-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1.5v2.5M12 20v2.5M1.5 12H4M20 12h2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></g></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+      </button>
+      {support_btn}
+    </div>
   </div>
+  <div class="flagline" aria-hidden="true"></div>
+  {ticker}
 </header>
 {body}
 <footer class="site-footer">
-  <div class="wrap">
+  <div class="wrap foot">
+    <div class="foot-brand"><img src="logo.svg" width="150" height="32" alt="News Nepal" class="foot-logo">
+      <p>{esc(tagline)}</p></div>
+    <div>
     <p class="disclaimer">{footer}</p>
-    <p>{t['footer_own']} © {datetime.now(NEPAL_TZ).year} {esc(s['title'])}{contact}</p>
+    <p>{t['footer_own']} {t['footer_images']} © {datetime.now(NEPAL_TZ).year} {esc(s['title'])}{support_link}{contact}</p>
+    </div>
   </div>
 </footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="app.js" defer></script>
 </body>
 </html>
 """
 
 
-def story_card(it: dict, lang: str, cats: dict | None) -> str:
+def story_card(it: dict, lang: str, cats: dict | None, *, hero: bool = False, colors: dict | None = None) -> str:
     t = T[lang]
     title, summary = item_text(it, lang)
+    cat = it.get("category", "")
+    color = (colors or {}).get(cat) or DEFAULT_CAT_COLORS.get(cat, "#64748b")
+    ph = f"img/ph-{cat}.svg" if cat else "img/ph-visa.svg"
+    img = it.get("image") or ""
+    credit = esc(t["image_by"].format(src=it["source"]))
+    if img:
+        pic = (f'<img class="thumb" src="{esc(img)}" alt="" loading="{"eager" if hero else "lazy"}" decoding="async" '
+               f'referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=\'{ph}\';this.nextElementSibling.hidden=true">'
+               f'<span class="credit">{credit}</span>')
+    else:
+        pic = f'<img class="thumb" src="{ph}" alt="" loading="lazy" decoding="async"><span class="credit" hidden></span>'
     summary_html = f'<p class="summary">{esc(summary)}</p>' if summary else ""
-    when = (f'<time datetime="{esc(it["published"])}">{esc(nepal_time(it["published"]))}</time>'
+    when = (f'<time datetime="{esc(it["published"])}" data-relative>{esc(nepal_time(it["published"]))}</time>'
             if it.get("published") else "")
-    pill = (f'<span class="pill pill-{esc(it["category"])}">{esc(cats.get(it["category"], it["category"]))}</span>'
-            if cats else "")
-    read = t["read_at"].format(src=it["source"])
+    pill = f'<span class="pill">{esc(cats.get(cat, cat))}</span>' if cats else ""
+    read = t["read_at"].format(src=it["source"]).replace(" ↗", "")
     if lang == "ne" and it.get("lang") == "ne":
-        read = f'{it["source"]} मा पूरा पढ्नुहोस् ↗'
+        read = f'{it["source"]} मा पूरा पढ्नुहोस्'
     title_lang = "ne" if (lang == "ne" and it.get("title_ne")) or it.get("lang") == "ne" else "en"
-    return f"""<article class="story" data-cat="{esc(it.get('category', ''))}">
-  <div class="meta">{pill}<span class="source">{esc(it['source'])}</span>{when}</div>
-  <h2 lang="{title_lang}"><a href="{esc(it['link'])}" target="_blank" rel="noopener nofollow">{esc(title)}</a></h2>
-  {summary_html}
-  <a class="read" href="{esc(it['link'])}" target="_blank" rel="noopener nofollow">{esc(read)}</a>
+    search = esc(f'{title} {summary} {it["title"]} {it["source"]}'.lower())
+    link = esc(it["link"])
+    return f"""<article class="story{' hero' if hero else ''}" data-cat="{esc(cat)}" data-q="{search}" style="--c:{esc(color)}">
+  <a class="pic" href="{link}" target="_blank" rel="noopener nofollow" tabindex="-1" aria-hidden="true">{pic}</a>
+  <div class="body">
+    <div class="meta">{pill}<span class="source">{esc(it['source'])}</span>{when}</div>
+    <h2 lang="{title_lang}"><a href="{link}" target="_blank" rel="noopener nofollow">{esc(title)}</a></h2>
+    {summary_html}
+    <div class="foot-row"><a class="read" href="{link}" target="_blank" rel="noopener nofollow">{esc(read)} <span aria-hidden="true">→</span></a>
+    {share_bar(dict(it, title=title))}</div>
+  </div>
 </article>"""
 
 
-def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str) -> str:
+def support_box(cfg: dict, lang: str, *, compact: bool) -> str:
+    """Ways to pay: card (Stripe Payment Link, AUD), Nepal QR (eSewa / Khalti / Fonepay), crypto."""
+    t = T[lang]
+    m = cfg["monetization"]
+    sm = support_methods(m)
+    sup, don = sm["cfg"], sm["don"]
+    # Nepali pages use the *_ne text when given, else the built-in Nepali wording (not the English text).
+    pick = lambda key, default: (sup.get(key + "_ne") if lang == "ne" else sup.get(key)) or default
+    show_ph = os.environ.get("SHOW_AD_PLACEHOLDERS") == "1"
+    parts = []
+    if sm["stripe"]:
+        parts.append(f'<a class="btn btn-pay" href="{esc(sm["stripe"])}" target="_blank" rel="noopener">'
+                     f'{esc(pick("stripe_button_text", t["pay_card"]))}</a>'
+                     f'<p class="fine">{esc(pick("stripe_note", t["stripe_note"]))}</p>')
+    elif show_ph:
+        parts.append('<span class="btn btn-pay is-placeholder">Pay by card (AUD): add your Stripe link</span>')
+    if sm["qr"]:
+        name = f'<br><strong>{esc(sup["nepal_account_name"])}</strong>' if sup.get("nepal_account_name") else ""
+        parts.append(f'<div class="qr"><img src="{esc(sm["qr"])}" alt="Payment QR code" width="180" height="180" loading="lazy">'
+                     f'<p>{esc(pick("nepal_qr_label", t["qr_label"]))}{name}</p></div>')
+    elif show_ph:
+        parts.append('<div class="qr is-placeholder"><span>Your eSewa / Fonepay QR</span></div>')
+    if sm["crypto"] and not compact:
+        rows = "".join(
+            f'<li><span class="coin">{esc(a["coin"])}</span><code>{esc(a["address"])}</code>'
+            f'<button class="copy" type="button" data-copy="{esc(a["address"])}">{t["copy"]}</button></li>' for a in sm["crypto"])
+        ud = don.get("unstoppable_domain")
+        ud_line = f'<p class="ud">{t["or_send"].format(ud=esc(ud))}</p>' if ud else ""
+        parts.append(f'<h4>{t["crypto"]}</h4><ul class="addresses">{rows}</ul>{ud_line}'
+                     f'<p class="fine">{t["tips_outside"]}</p>')
+    elif sm["crypto"]:
+        parts.append(f'<p class="fine"><a href="{page_file("support", lang)}">{t["crypto_tips"]}</a></p>')
+    if not parts:
+        return ""
+    msg = pick("message", t["support_msg"])
+    more = '' if not compact else f'<a class="more" href="{page_file("support", lang)}">{t["all_ways"]}</a>'
+    return (f'<section class="box support-box"><h3>{t["support_h"]}</h3><p>{esc(msg)}</p>'
+            f'{"".join(parts)}{more}</section>')
+
+
+def render_support(cfg: dict, lang: str) -> str:
+    s, t = cfg["site"], T[lang]
+    box = support_box(cfg, lang, compact=False) or f'<p>{t["support_soon"]}</p>'
+    body = f"""<main id="main" class="wrap prose support-page">
+<h1>{t['support_h']}</h1>
+<p>{t['support_lead']}</p>
+{box}
+<p class="fine">{t['support_fine']}</p>
+</main>"""
+    return page_shell(cfg, lang, "support", f"{t['support_h']} | {s['title']}", body, description=t["support_lead"])
+
+
+def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str, forex: list[dict] | None = None) -> str:
     s, m, t = cfg["site"], cfg["monetization"], T[lang]
     cats = {c["id"]: tr(c.get("label_i18n") or {"en": c["label"]}, lang) for c in cfg["categories"]}
+    colors = cat_colors(cfg)
 
-    tabs = [f'<button class="tab is-active" data-cat="all" aria-pressed="true">{t["all"]}</button>']
+    chips = [f'<button class="chip is-active" type="button" data-cat="all" aria-pressed="true">{t["all"]} '
+             f'<span class="count">{len(items)}</span></button>']
     for c in cfg["categories"]:
         n = sum(1 for i in items if i["category"] == c["id"])
         if n:
-            tabs.append(f'<button class="tab" data-cat="{esc(c["id"])}" aria-pressed="false">'
-                        f'{esc(cats[c["id"]])} <span class="count">{n}</span></button>')
+            chips.append(f'<button class="chip" type="button" data-cat="{esc(c["id"])}" aria-pressed="false" '
+                         f'style="--c:{esc(colors[c["id"]])}">{esc(cats[c["id"]])} <span class="count">{n}</span></button>')
+
+    hero_idx = next((n for n, i in enumerate(items[:6]) if i.get("image")), 0 if items else None)
+    hero = story_card(items[hero_idx], lang, cats, hero=True, colors=colors) if hero_idx is not None else ""
+    rest = [it for n, it in enumerate(items) if n != hero_idx]
 
     cards = []
     every = max(int(m.get("ad_every_n_items") or 0), 0)
-    for idx, it in enumerate(items, 1):
-        cards.append(story_card(it, lang, cats))
-        if every and idx % every == 0 and idx != len(items):
+    for idx, it in enumerate(rest, 1):
+        cards.append(story_card(it, lang, cats, colors=colors))
+        if every and idx % every == 0 and idx != len(rest):
             ad = adsense_unit(m, m.get("adsense_slot_feed", ""), "In-feed ad (Google AdSense or a direct sponsor)")
             if ad:
                 cards.append(ad)
-    if not cards:
+    if not items:
         cards.append(f'<p class="empty">{t["empty"]}</p>')
 
     side = []
+    sb = support_box(cfg, lang, compact=True)
+    if sb:
+        side.append(sb)
     sp = m.get("sponsor") or {}
     if sp.get("text"):
         link = f'<a href="{esc(sp.get("url"))}" target="_blank" rel="noopener sponsored">{esc(sp["text"])}</a>' \
@@ -415,21 +741,6 @@ def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str) ->
         side.append(f'<section class="box sponsor"><h3>{t["sponsor"]}</h3><p>{link}</p></section>')
     elif os.environ.get("SHOW_AD_PLACEHOLDERS") == "1":
         side.append(f'<section class="box sponsor ad-placeholder"><h3>{t["sponsor"]}</h3><p>Your brand here. Sell this spot to a Nepali business.</p></section>')
-
-    don = m.get("donations") or {}
-    addrs = [a for a in don.get("addresses", []) if a.get("address")]
-    if addrs:
-        rows = "".join(
-            f'<li><span class="coin">{esc(a["coin"])}</span><code>{esc(a["address"])}</code>'
-            f'<button class="copy" data-copy="{esc(a["address"])}">{t["copy"]}</button></li>' for a in addrs)
-        ud = don.get("unstoppable_domain")
-        ud_line = f'<p class="ud">{t["or_send"].format(ud=esc(ud))}</p>' if ud else ""
-        msg = don.get("message_ne") if lang == "ne" and don.get("message_ne") else don.get("message", "")
-        side.append(f'<section class="box donate"><h3>{t["support"]}</h3><p>{esc(msg)}</p>'
-                    f'<ul class="addresses">{rows}</ul>{ud_line}'
-                    f'<p class="fine">{t["tips_outside"]}</p></section>')
-    elif os.environ.get("SHOW_AD_PLACEHOLDERS") == "1":
-        side.append(f'<section class="box donate ad-placeholder"><h3>{t["support"]}</h3><p>Donation addresses appear here once added to config.json.</p></section>')
 
     affs = [a for a in m.get("affiliate_links", []) if a.get("label") and a.get("url")]
     if affs:
@@ -443,34 +754,47 @@ def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str) ->
     counts = t["stories_from"].format(n=len(items), s=len({i["source"] for i in items}))
     tagline = s.get("tagline_ne") if lang == "ne" and s.get("tagline_ne") else s["tagline"]
     machine = f'<p class="fine machine">{t["machine"]}</p>' if lang == "ne" else ""
-    visa_promo = (f'<section class="box promo"><h3>{T[lang]["visa"]}</h3><p>'
+    visa_promo = (f'<section class="box promo"><h3>{t["visa"]}</h3><p>'
                   + ("Australia visa news in Nepali and English, and a free tool to check your migration agent."
                      if lang == "en" else "नेपाली र अंग्रेजीमा अस्ट्रेलिया भिसा समाचार, र आफ्नो माइग्रेसन एजेन्ट जाँच्ने निःशुल्क उपकरण।")
-                  + f'</p><p><a href="{page_file("visa", lang)}">{T[lang]["visa"]} →</a> · '
-                  f'<a href="{page_file("check-agent", lang)}">{T[lang]["check"]} →</a></p></section>')
+                  + f'</p><p><a href="{page_file("visa", lang)}">{t["visa"]} →</a> · '
+                  f'<a href="{page_file("check-agent", lang)}">{t["check"]} →</a></p></section>')
 
-    body = f"""<main class="wrap layout">
-  <div class="feed">
-    <div class="intro">
+    body = f"""<main id="main" class="wrap">
+  <section class="intro">
+    <div>
       <h1>{esc(tagline)}</h1>
-      <p class="updated">{t['updated']} <time datetime="{built_at.isoformat()}" data-relative>{esc(nepal_time(built_at.isoformat()))}</time> · {counts}</p>
+      <p class="updated"><span class="live-dot" aria-hidden="true"></span>{t['updated']} <time datetime="{built_at.isoformat()}" data-relative>{esc(nepal_time(built_at.isoformat()))}</time> · {counts}</p>
       {machine}
     </div>
-    {top_ad}
-    <div class="tabs" role="toolbar" aria-label="Filter by topic">{''.join(tabs)}</div>
-    <div class="stories">
-{chr(10).join(cards)}
-    </div>
+  </section>
+  {top_ad}
+  <div class="toolbar">
+    <div class="chips" role="toolbar" aria-label="Filter by topic">{''.join(chips)}</div>
+    <label class="search"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="search" id="q" placeholder="{t['search']}" aria-label="{t['search']}" autocomplete="off"></label>
   </div>
-  <aside class="side">
-    <section class="box notice"><h3>{t['news_not_advice']}</h3><p>{t['news_not_advice_p']}</p></section>
-    {visa_promo}
-    {''.join(side)}
-  </aside>
+  <div class="layout">
+    <div class="feed">
+      {hero}
+      <div class="stories">
+{chr(10).join(cards)}
+      </div>
+      <p class="empty no-match" hidden>{t['no_match']}</p>
+    </div>
+    <aside class="side">
+      <section class="box notice"><h3>{t['news_not_advice']}</h3><p>{t['news_not_advice_p']}</p></section>
+      {visa_promo}
+      {''.join(side)}
+      <section class="box follow"><h3>{t['updates']}</h3><p>{t['updates_p']}</p>
+      <a class="btn btn-ghost" href="feed.xml">{t['rss']}</a></section>
+    </aside>
+  </div>
 </main>"""
     title = (f"{s['title']} | Digital currency and finance news for Nepal" if lang == "en"
              else f"{s['title']} | नेपालका लागि डिजिटल मुद्रा र वित्त समाचार")
-    return page_shell(cfg, lang, "index", title, body, description=tagline)
+    return page_shell(cfg, lang, "index", title, body, description=tagline,
+                      ticker=render_ticker(cfg, forex or [], lang))
 
 
 def render_about(cfg: dict, lang: str) -> str:
@@ -505,7 +829,7 @@ contact us and we will remove it.</p>"""
 गैरकानुनी घोषणा गरेको छ। हामी दर्ता भएको माइग्रेसन एजेन्ट होइनौं र भिसा सहयोग (immigration assistance) दिँदैनौं।</p>
 <p>हरेक शीर्षक र सारांश मूल प्रकाशकको हो। प्रकाशकले आफ्नो फिड हटाउन चाहेमा सम्पर्क गर्नुहोस्, हामी हटाउनेछौं।</p>"""
     return page_shell(cfg, lang, "about", f"{T[lang]['about']} | {s['title']}",
-                      f'<main class="wrap prose">{text}</main>',
+                      f'<main id="main" class="wrap prose">{text}</main>',
                       description=f"About {s['title']} and its sources")
 
 
@@ -553,12 +877,12 @@ def visa_sidebar(cfg: dict, lang: str) -> str:
             if sp.get("url") else esc(sp["text"])
         sponsor = f'<section class="box sponsor"><h3>{t["sponsor"]}</h3><p>{link}</p></section>'
     return (f'<aside class="side">{notice}<section class="box"><h3>{guides[0]}</h3><ul class="links">{links}</ul></section>'
-            f'{featured_agents_box(cfg, lang)}{sponsor}</aside>')
+            f'{featured_agents_box(cfg, lang)}{support_box(cfg, lang, compact=True)}{sponsor}</aside>')
 
 
 def render_visa(cfg: dict, items: list[dict], built_at: datetime, lang: str) -> str:
     s, m, t = cfg["site"], cfg["monetization"], T[lang]
-    cards = [story_card(it, lang, None) for it in items] or [f'<p class="empty">{t["empty"]}</p>']
+    cards = [story_card(it, lang, None, colors={"visa": DEFAULT_CAT_COLORS["visa"]}) for it in items] or [f'<p class="empty">{t["empty"]}</p>']
     latest = V.CHANGES[:3]
     facts = "".join(f'<li><strong>{esc(tr(c["date"], lang))}:</strong> {esc(c[lang])}</li>' for c in latest)
     if lang == "en":
@@ -577,7 +901,7 @@ def render_visa(cfg: dict, items: list[dict], built_at: datetime, lang: str) -> 
                f'<a href="{page_file("check-agent", lang)}">उनीहरू दर्ता भएका छन् कि छैनन् र खतराका संकेत जाँच्नुहोस् →</a>')
     machine = f'<p class="fine machine">{t["machine"]}</p>' if lang == "ne" else ""
     top_ad = adsense_unit(m, cfg.get("visa", {}).get("adsense_slot_top", ""), "Top banner ad on the visa page")
-    body = f"""<main class="wrap layout">
+    body = f"""<main id="main" class="wrap layout">
   <div class="feed">
     <div class="intro">
       <h1>{h1}</h1>
@@ -661,7 +985,7 @@ Lawyers are not on this register; check them with the law society in their state
                "गर्नु पर्दैन, तर दर्ता भएको माइग्रेसन एजेन्ट नभई उनीहरूले भिसा सल्लाह <strong>दिन पाउँदैनन्</strong>। "
                "आफ्नो कलेजसँग स्वीकृत एजेन्टको सूची माग्नुहोस्।</p>")
         result_label = "नतिजा"
-    body = f"""<main class="wrap layout">
+    body = f"""<main id="main" class="wrap layout">
   <div class="feed prose-in">
     <h1>{h1}</h1>
     <p class="lead">{lead}</p>
@@ -695,7 +1019,7 @@ def render_changes(cfg: dict, lang: str) -> str:
         h1, lead = "२०२६ मा नेपाली विद्यार्थी र आप्रवासीका लागि के बदलियो", \
             "यो वर्षका अस्ट्रेलियाली भिसाका ठूला परिवर्तनको सरल सारांश, हरेकको स्रोतसहित। अन्तिम पटक २६ नोभेम्बर २०२६ मा जाँचिएको।"
         tips_h, off = "आवेदन दिनुअघि", f'आधिकारिक सूची: <a href="{official}" target="_blank" rel="noopener">Australian Government migration policy changes ↗</a>'
-    body = f"""<main class="wrap layout">
+    body = f"""<main id="main" class="wrap layout">
   <div class="feed prose-in">
     <h1>{h1}</h1>
     <p class="lead">{lead}</p>
@@ -728,7 +1052,7 @@ def render_scams(cfg: dict, lang: str) -> str:
         rep_h, work = "कहाँ उजुरी गर्ने", (f'कम तलब पाइरहनुभएको छ वा कागजबिना काम गर्न भनिएको छ? भिसा भएकालाई पनि अरूसरह कामको अधिकार हुन्छ: '
                                          f'<a href="{fw}" target="_blank" rel="noopener">Fair Work: भिसा भएकाहरूका लागि सहयोग ↗</a>।')
         cta = f'<a href="{page_file("check-agent", lang)}">एजेन्ट जाँच्ने उपकरण प्रयोग गर्नुहोस् →</a>'
-    body = f"""<main class="wrap layout">
+    body = f"""<main id="main" class="wrap layout">
   <div class="feed prose-in">
     <h1>{h1}</h1>
     <p class="lead">{lead}</p>
@@ -829,6 +1153,8 @@ def collect(label: str, feeds: list[dict], keywords: dict, previous: list[dict],
         old = known.get(link)
         if old and old is not it and old.get("title_ne") and old.get("title") == it["title"]:
             it["title_ne"], it["summary_ne"] = old["title_ne"], old.get("summary_ne", "")
+        if old and old is not it and not it.get("image") and (old.get("image") or old.get("image_checked")):
+            it["image"], it["image_checked"] = old.get("image", ""), old.get("image_checked", False)
         if re.search("[\u0900-\u097F]", it["title"]):  # headline already in Nepali (Devanagari)
             it["lang"] = "ne"
         if it.get("lang") == "ne":
@@ -840,6 +1166,35 @@ def collect(label: str, feeds: list[dict], keywords: dict, previous: list[dict],
 
     merged.sort(key=lambda i: i.get("published") or "", reverse=True)
     return merged[:max_items], report
+
+
+def enrich_images(cfg: dict, items: list[dict]) -> None:
+    """For stories whose feed had no picture, read the article's own og:image (a few per build)."""
+    limit = int((cfg.get("images") or {}).get("og_lookups_per_build", 30))
+    if os.environ.get("NO_OG_LOOKUPS") == "1":
+        limit = 0
+    done = 0
+    for it in items:
+        if done >= limit:
+            break
+        if it.get("image") or it.get("image_checked") or "news.google.com" in it["link"]:
+            continue
+        it["image_checked"] = True
+        done += 1
+        try:
+            it["image"] = og_image(it["link"])
+        except Exception:
+            it["image"] = ""
+    if done:
+        print(f"  looked up {done} article images, {sum(1 for i in items if i.get('image'))} of {len(items)} stories have one")
+
+
+def write_placeholders(cfg: dict, out: Path) -> None:
+    (out / "img").mkdir(exist_ok=True)
+    colors = cat_colors(cfg)
+    for c in cfg.get("categories", []):
+        (out / "img" / f"ph-{c['id']}.svg").write_text(placeholder_svg(c["label"], colors[c["id"]]), "utf-8")
+    (out / "img" / "ph-visa.svg").write_text(placeholder_svg("Australia visa", DEFAULT_CAT_COLORS["visa"]), "utf-8")
 
 
 def build(config_path: Path, out: Path) -> dict:
@@ -858,6 +1213,8 @@ def build(config_path: Path, out: Path) -> dict:
         print("Every news feed failed and there is no history; not overwriting the site.", file=sys.stderr)
         sys.exit(1)
 
+    enrich_images(cfg, items + visa_items)
+
     # Visa stories first: they matter most to the Nepali-language audience.
     tr_settings = cfg.get("translation", {})
     translated = translate.translate_items(visa_items + items, tr_settings)
@@ -867,10 +1224,13 @@ def build(config_path: Path, out: Path) -> dict:
     for f in (ROOT / "static").iterdir():
         if f.is_file():
             shutil.copy2(f, out / f.name)
+    write_placeholders(cfg, out)
+    forex = fetch_forex(cfg)
     pages = []
     for lang in LANGS:
         for base_name, html_text in (
-            ("index", render_index(cfg, items, now, lang)),
+            ("index", render_index(cfg, items, now, lang, forex)),
+            ("support", render_support(cfg, lang)),
             ("about", render_about(cfg, lang)),
             ("visa", render_visa(cfg, visa_items, now, lang)),
             ("check-agent", render_check_agent(cfg, lang)),

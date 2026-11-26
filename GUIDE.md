@@ -167,3 +167,41 @@ registration is an offence under the Migration Act, whether or not you charge (w
 So this section must stay general: explain news and official rules, link to official sources, and send people to
 registered agents. Do not answer "what should I do about my visa?" questions in comments, messages or Facebook.
 Do not name or accuse a specific agent unless you are quoting an official decision or court result (defamation risk).
+
+## Part 6. Getting paid directly (Support button)
+
+The site has a red **Support** button in the header and a "Support News Nepal" box in the sidebar. Both link to
+`support.html` (and `support.ne.html` in Nepali). They stay hidden until you add at least one payment method in
+`config.json` under `monetization` → `support` and `donations`.
+
+### Card payments in AUD (Stripe Payment Link), about 15 minutes
+1. Sign up at stripe.com as an Australian business (ABN or sole trader details, and your bank account for payouts).
+2. In the Stripe Dashboard go to **Payment Links → New**. Choose a product such as "Support News Nepal", set the
+   price type to **Customers choose what to pay** (currency AUD, suggested amount A$5) and create the link.
+3. Copy the link (it starts with `https://buy.stripe.com/`) into `"stripe_payment_link"`.
+Fees: about 1.7% + A$0.30 per domestic card payment. Readers can pay with card, Apple Pay or Google Pay.
+
+### Payments from Nepal (eSewa, Khalti or Fonepay QR)
+1. In your eSewa or Khalti app (or your Nepali bank's mobile app, for a Fonepay QR) open **My QR / Receive money**
+   and save the QR image.
+2. Put the image in the `static` folder, for example `static/support-qr.png`.
+3. Set `"nepal_qr_image": "support-qr.png"` and your account name in `"nepal_account_name"`.
+A personal wallet QR is fine for small tips. For regular income, ask your bank for a **merchant** Fonepay QR.
+
+### Crypto tips (from outside Nepal only)
+Fill in the wallet addresses under `donations` → `addresses`. These only show on the full support page, with a
+note that they are for readers outside Nepal, because crypto transactions are illegal in Nepal.
+
+Optional: add `"message_ne"`, `"stripe_button_text_ne"` or `"nepal_qr_label_ne"` to show your own Nepali wording.
+
+## Part 7. Images, logo and live prices
+- **Story images** come from each publisher's feed (media:content, enclosure or the first picture in the story).
+  If the feed has none, the build reads the article's own preview picture (og:image), up to 30 new articles
+  per hourly build (`images.og_lookups_per_build`). Each picture is credited "Image: <publisher>" and links to
+  the original article. Google News stories have no image, so they show a branded News Nepal picture.
+  If a publisher asks you to stop showing its pictures, set `"enabled": false` on its feed.
+- **Logo**: `static/logo.svg` (full) and `static/logo-mark.svg` (square icon, also the favicon). They are original
+  vector files you can reuse for social media profiles.
+- **Price strip**: exchange rates come from Nepal Rastra Bank's free daily API at build time; BTC, ETH and USDT
+  prices load live from CoinGecko's free API in the reader's browser. Change the lists under `ticker`, or empty
+  them to hide the strip. Prices are shown as market news only.
