@@ -345,6 +345,7 @@ T = {
         "markets": "Markets", "nrb_sell": "NRB sell", "mid_rate": "market rate", "theme": "Light / dark", "share": "Share",
         "updates": "Get updates", "updates_p": "Follow every new story in your feed reader.", "rss": "RSS feed",
         "skip": "Skip to stories", "footer_images": "Images belong to the publishers credited on each story.",
+        "rates": "Rates", "rates_h": "Exchange rates today",
     },
     "ne": {
         "headlines": "समाचार", "visa": "अस्ट्रेलिया भिसा", "check": "एजेन्ट जाँच्नुहोस्", "about": "हाम्रोबारे",
@@ -374,6 +375,7 @@ T = {
         "markets": "बजार", "nrb_sell": "राष्ट्र बैंक बिक्री", "mid_rate": "बजार दर", "theme": "उज्यालो / अँध्यारो", "share": "सेयर",
         "updates": "अपडेट पाउनुहोस्", "updates_p": "हरेक नयाँ समाचार आफ्नो फिड रिडरमा पाउनुहोस्।", "rss": "RSS फिड",
         "skip": "समाचारमा जानुहोस्", "footer_images": "तस्बिरहरू हरेक समाचारमा उल्लेख गरिएका प्रकाशकका हुन्।",
+        "rates": "विनिमय दर", "rates_h": "आजको विनिमय दर",
     },
 }
 
@@ -476,11 +478,11 @@ def _market_rates(wanted: list[str]) -> list[dict]:
     return out
 
 
-def fetch_forex(cfg: dict) -> list[dict]:
-    """Rupee exchange rates for the ticker: Nepal Rastra Bank first, a free market-rate API if NRB is unreachable.
-    Empty on any failure, which hides that part of the strip."""
+def fetch_forex(cfg: dict, codes: list[str] | None = None) -> list[dict]:
+    """Rupee exchange rates: Nepal Rastra Bank first, a free market-rate API if NRB is unreachable.
+    `codes` defaults to the ticker's list. Empty on any failure, which hides the strip and the rate table."""
     t = cfg.get("ticker") or {}
-    wanted = [c.upper() for c in t.get("forex", [])]
+    wanted = [c.upper() for c in (t.get("forex", []) if codes is None else codes)]
     if not wanted or os.environ.get("NO_FOREX") == "1":
         return []
     for name, fn in (("Nepal Rastra Bank", _nrb_rates), ("market rates", _market_rates)):
@@ -550,7 +552,7 @@ def render_ticker(cfg: dict, forex: list[dict], lang: str = "en") -> str:
     vs = esc((t.get("coin_currency") or "usd").lower())
     strip = "".join(cells)
     return (f'<div class="ticker" data-vs="{vs}" title="{note}"><div class="wrap ticker-in">'
-            f'<span class="tk-label">{T[lang]["markets"]}</span><div class="tk-scroll"><div class="tk-track">{strip}</div></div>'
+            f'<a class="tk-label" href="{page_file("rates", lang)}" title="{T[lang]["rates_h"]}">{T[lang]["markets"]}</a><div class="tk-scroll"><div class="tk-track">{strip}</div></div>'
             f'</div></div>')
 
 
@@ -570,7 +572,8 @@ def page_shell(cfg: dict, lang: str, base_name: str, title: str, body: str, *,
     if m.get("adsense_client", "").strip():
         ads_head = (f'<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='
                     f'{esc(m["adsense_client"].strip())}" crossorigin="anonymous"></script>')
-    nav = [("index", t["headlines"]), ("visa", t["visa"]), ("check-agent", t["check"]), ("about", t["about"])]
+    nav = [("index", t["headlines"]), ("rates", t["rates"]), ("visa", t["visa"]), ("check-agent", t["check"]),
+           ("about", t["about"])]
     current = ' aria-current="page"'
     nav_html = "".join(
         f'<a href="{page_file(b, lang)}"{current if b == base_name else ""}>{esc(label)}</a>'
@@ -820,6 +823,123 @@ def render_index(cfg: dict, items: list[dict], built_at: datetime, lang: str, fo
              else f"{s['title']} | नेपालका लागि डिजिटल मुद्रा र वित्त समाचार")
     return page_shell(cfg, lang, "index", title, body, description=tagline,
                       ticker=render_ticker(cfg, forex or [], lang))
+
+
+CURRENCY_NAMES = {
+    "USD": ("US dollar", "अमेरिकी डलर"), "EUR": ("Euro", "युरो"), "GBP": ("UK pound", "बेलायती पाउन्ड"),
+    "CHF": ("Swiss franc", "स्विस फ्रैंक"), "AUD": ("Australian dollar", "अस्ट्रेलियन डलर"),
+    "CAD": ("Canadian dollar", "क्यानेडियन डलर"), "SGD": ("Singapore dollar", "सिंगापुर डलर"),
+    "JPY": ("Japanese yen", "जापानी येन"), "CNY": ("Chinese yuan", "चिनियाँ युआन"),
+    "SAR": ("Saudi riyal", "साउदी रियाल"), "QAR": ("Qatari riyal", "कतारी रियाल"), "THB": ("Thai baht", "थाई भाट"),
+    "AED": ("UAE dirham", "यूएई दिराम"), "MYR": ("Malaysian ringgit", "मलेसियन रिंगेट"),
+    "KRW": ("South Korean won", "दक्षिण कोरियाली वोन"), "SEK": ("Swedish krona", "स्विडिस क्रोनर"),
+    "DKK": ("Danish krone", "डेनिस क्रोनर"), "HKD": ("Hong Kong dollar", "हङकङ डलर"),
+    "KWD": ("Kuwaiti dinar", "कुवेती दिनार"), "BHD": ("Bahraini dinar", "बहराइनी दिनार"),
+    "OMR": ("Omani rial", "ओमानी रियाल"), "INR": ("Indian rupee", "भारतीय रुपैयाँ"),
+}
+
+RATES_TEXT = {
+    "en": {
+        "title": "AUD to NPR today and Nepal Rastra Bank exchange rates",
+        "desc": "Today's Australian dollar to Nepali rupee rate and every Nepal Rastra Bank (NRB) exchange rate: US dollar, euro, pound, riyal, dirham, ringgit and more. Updated every hour.",
+        "h1": "AUD to NPR today, and every NRB exchange rate",
+        "src_nrb": "Official reference rates from Nepal Rastra Bank for {date}.",
+        "src_market": "Nepal Rastra Bank's rates could not be read at this update, so these are free market mid rates. They may differ from NRB.",
+        "checked": "Checked",
+        "aud_big": "1 Australian dollar", "buy": "Buying", "sell": "Selling", "mid": "Mid rate",
+        "aud_table": "Australian dollars in rupees", "aud_col": "AUD", "npr_col": "NPR (at the buying rate)",
+        "calc": "Convert", "amount": "Amount", "currency": "Currency", "result_pre": "≈ Rs",
+        "all": "All Nepal Rastra Bank rates", "cur": "Currency", "unit": "Unit",
+        "per": "Rupees per unit shown. Buying is the rate at which banks buy foreign currency from you (when you bring money into Nepal); selling is the rate at which they sell it to you.",
+        "send_h": "Sending money to Nepal?",
+        "send_p": "Banks and remittance companies set their own rate and fees, which is usually below the NRB rate. Compare what your family actually receives before you send.",
+        "send_btn": "Compare remittance providers on GorkhaPay →",
+        "none": "Rates could not be read at this update. The next update runs within the hour. You can also check the official rates on the Nepal Rastra Bank website.",
+        "official": "Official source: Nepal Rastra Bank forex page",
+        "fine": "Reference rates for information only, not an offer to buy or sell currency and not financial advice. Your bank or money transfer company will use its own rate.",
+    },
+    "ne": {
+        "title": "आजको अस्ट्रेलियन डलर (AUD) देखि नेपाली रुपैयाँ दर र नेपाल राष्ट्र बैंकको विनिमय दर",
+        "desc": "आजको अस्ट्रेलियन डलरको नेपाली रुपैयाँमा दर र नेपाल राष्ट्र बैंकका सबै विनिमय दर: अमेरिकी डलर, युरो, पाउन्ड, रियाल, दिराम, रिंगेट र अन्य। हरेक घण्टा अपडेट।",
+        "h1": "आजको विनिमय दर: अस्ट्रेलियन डलरदेखि नेपाली रुपैयाँ",
+        "src_nrb": "नेपाल राष्ट्र बैंकले {date} का लागि प्रकाशित गरेको आधिकारिक दर।",
+        "src_market": "यो अपडेटमा नेपाल राष्ट्र बैंकको दर पढ्न सकिएन, त्यसैले यी निःशुल्क बजार मध्य दर हुन्। राष्ट्र बैंकको दरभन्दा फरक हुन सक्छ।",
+        "checked": "जाँच गरिएको",
+        "aud_big": "१ अस्ट्रेलियन डलर", "buy": "खरिद", "sell": "बिक्री", "mid": "मध्य दर",
+        "aud_table": "अस्ट्रेलियन डलर रुपैयाँमा", "aud_col": "AUD", "npr_col": "रुपैयाँ (खरिद दरमा)",
+        "calc": "हिसाब गर्नुहोस्", "amount": "रकम", "currency": "मुद्रा", "result_pre": "≈ रु",
+        "all": "नेपाल राष्ट्र बैंकका सबै दर", "cur": "मुद्रा", "unit": "एकाइ",
+        "per": "देखाइएको एकाइको रुपैयाँ। खरिद दरमा बैंकले तपाईंबाट विदेशी मुद्रा किन्छ (नेपालमा पैसा ल्याउँदा); बिक्री दरमा तपाईंलाई बेच्छ।",
+        "send_h": "नेपालमा पैसा पठाउँदै हुनुहुन्छ?",
+        "send_p": "बैंक र रेमिट्यान्स कम्पनीले आफ्नै दर र शुल्क लिन्छन्, जुन प्रायः राष्ट्र बैंकको दरभन्दा कम हुन्छ। पठाउनुअघि परिवारले वास्तवमा कति पाउँछ भनेर तुलना गर्नुहोस्।",
+        "send_btn": "GorkhaPay मा रेमिट्यान्स कम्पनी तुलना गर्नुहोस् →",
+        "none": "यो अपडेटमा दर पढ्न सकिएन। अर्को अपडेट एक घण्टाभित्र हुन्छ। आधिकारिक दर नेपाल राष्ट्र बैंकको वेबसाइटमा पनि हेर्न सक्नुहुन्छ।",
+        "official": "आधिकारिक स्रोत: नेपाल राष्ट्र बैंकको विदेशी विनिमय पृष्ठ",
+        "fine": "जानकारीका लागि मात्र सन्दर्भ दर। मुद्रा किनबेचको प्रस्ताव वा वित्तीय सल्लाह होइन। तपाईंको बैंक वा रेमिट्यान्स कम्पनीले आफ्नै दर प्रयोग गर्छ।",
+    },
+}
+
+NRB_FOREX_PAGE = "https://www.nrb.org.np/forex/"
+
+
+def _rs(x: float) -> str:
+    return f"{x:,.2f}"
+
+
+def render_rates(cfg: dict, rates: list[dict], built_at: datetime, lang: str, ticker_rates: list[dict] | None = None) -> str:
+    """'AUD to NPR today' + full NRB rate table. Server-rendered so it works without JavaScript and can be indexed;
+    app.js adds a small converter on top."""
+    s, x = cfg["site"], RATES_TEXT[lang]
+    rp = cfg.get("rates_page") or {}
+    li = 1 if lang == "ne" else 0
+    src = rates[0].get("src") if rates else ""
+    date = next((r.get("date") for r in rates if r.get("date")), "")
+    checked = built_at.astimezone(NEPAL_TZ).strftime("%Y-%m-%d %H:%M")
+    if src == "nrb":
+        source = x["src_nrb"].format(date=esc(date))
+    elif src:
+        source = x["src_market"]
+    else:
+        source = ""
+    parts = [f'<h1>{x["h1"]}</h1>']
+    if source:
+        parts.append(f'<p class="updated">{source} {x["checked"]}: {checked} (NPT)</p>')
+    aud = next((r for r in rates if r["code"] == "AUD"), None)
+    if aud:
+        per = aud["buy"] / aud["unit"]
+        same = abs(aud["buy"] - aud["sell"]) < 1e-9
+        big = (f'<div class="rate-big"><span class="rb-l">{x["aud_big"]} =</span> '
+               f'<span class="rb-v">Rs {_rs(per)}</span>'
+               f'<span class="rb-s">{x["mid"] if same else x["buy"]}'
+               + ("" if same else f' · {x["sell"]} Rs {_rs(aud["sell"] / aud["unit"])}') + '</span></div>')
+        rows = "".join(f'<tr><td>{n:,}</td><td>Rs {_rs(n * per)}</td></tr>'
+                       for n in rp.get("aud_amounts", [100, 500, 1000, 2000, 5000]))
+        parts.append(big)
+        parts.append(f'<h2>{x["aud_table"]}</h2><table class="rates aud-table"><thead><tr><th>{x["aud_col"]}</th>'
+                     f'<th>{x["npr_col"]}</th></tr></thead><tbody>{rows}</tbody></table>')
+    if rates:
+        opts = "".join(
+            f'<option value="{esc(r["code"])}" data-rate="{r["buy"] / r["unit"]:.6f}"'
+            f'{" selected" if r["code"] == "AUD" else ""}>{esc(r["code"])}</option>' for r in rates)
+        parts.append(f'<form class="fx-calc" id="fx-calc" hidden><label>{x["amount"]} <input id="fx-amt" type="number" '
+                     f'min="0" step="any" value="1000" inputmode="decimal"></label><label>{x["currency"]} '
+                     f'<select id="fx-cur">{opts}</select></label><output id="fx-out" data-pre="{x["result_pre"]}"></output></form>')
+        body = "".join(
+            f'<tr><td><b>{esc(r["code"])}</b> <span class="muted">{esc(CURRENCY_NAMES.get(r["code"], ("", ""))[li])}</span></td>'
+            f'<td>{r["unit"]}</td><td>{_rs(r["buy"])}</td><td>{_rs(r["sell"])}</td></tr>' for r in rates)
+        parts.append(f'<h2>{x["all"]}</h2><div class="table-scroll"><table class="rates"><thead><tr><th>{x["cur"]}</th>'
+                     f'<th>{x["unit"]}</th><th>{x["buy"]}</th><th>{x["sell"]}</th></tr></thead><tbody>{body}</tbody>'
+                     f'</table></div><p class="muted small">{x["per"]}</p>')
+    else:
+        parts.append(f'<p class="box">{x["none"]}</p>')
+    gp = (rp.get("remittance_compare_url") or "").strip()
+    if gp:
+        parts.append(f'<aside class="box send-box"><h2>{x["send_h"]}</h2><p>{x["send_p"]}</p>'
+                     f'<a class="btn btn-support" href="{esc(gp)}">{x["send_btn"]}</a></aside>')
+    parts.append(f'<p class="muted small"><a href="{NRB_FOREX_PAGE}" rel="noopener">{x["official"]}</a>. {x["fine"]}</p>')
+    return page_shell(cfg, lang, "rates", f'{x["title"]} | {s["title"]}',
+                      f'<main id="main" class="wrap prose rates-page">{"".join(parts)}</main>',
+                      description=x["desc"], ticker=render_ticker(cfg, ticker_rates or [], lang))
 
 
 def render_about(cfg: dict, lang: str) -> str:
@@ -1306,11 +1426,18 @@ def build(config_path: Path, out: Path) -> dict:
             shutil.copy2(f, out / f.name)
     write_placeholders(cfg, out)
     illustrate_items(cfg, items + visa_items, out)
-    forex = fetch_forex(cfg)
+    ticker_codes = [c.upper() for c in (cfg.get("ticker") or {}).get("forex", [])]
+    rp = cfg.get("rates_page") or {}
+    all_codes = list(dict.fromkeys(ticker_codes + [c.upper() for c in rp.get("currencies", [])]))
+    rate_table = fetch_forex(cfg, all_codes)
+    by_code = {r["code"]: r for r in rate_table}
+    forex = [by_code[c] for c in ticker_codes if c in by_code]
+    (out / "rates.json").write_text(json.dumps({"built": now.isoformat(), "rates": rate_table}, indent=1), "utf-8")
     pages = []
     for lang in LANGS:
         for base_name, html_text in (
             ("index", render_index(cfg, items, now, lang, forex)),
+            ("rates", render_rates(cfg, rate_table, now, lang, forex)),
             ("support", render_support(cfg, lang)),
             ("about", render_about(cfg, lang)),
             ("visa", render_visa(cfg, visa_items, now, lang)),

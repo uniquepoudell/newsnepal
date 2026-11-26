@@ -128,6 +128,21 @@
     } else { startMoving(); }
   }
 
+  // Rates page converter: amount x NRB buying rate per unit. Shown only when this script runs.
+  var calc = document.getElementById('fx-calc');
+  if (calc) {
+    var amt = document.getElementById('fx-amt'), cur = document.getElementById('fx-cur'), out = document.getElementById('fx-out');
+    var conv = function () {
+      var rate = +cur.options[cur.selectedIndex].dataset.rate, n = parseFloat(amt.value);
+      if (isNaN(n) || !rate) { out.textContent = ''; return; }
+      var v = (n * rate).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+      out.textContent = out.dataset.pre + ' ' + (NE ? toNe(v) : v);
+    };
+    calc.hidden = false;
+    calc.addEventListener('submit', function (e) { e.preventDefault(); });
+    amt.addEventListener('input', conv); cur.addEventListener('change', conv); conv();
+  }
+
   // "Check your agent": red-flag checklist score. Answers never leave the browser.
   var flags = document.querySelectorAll('#flags .flag');
   var result = document.getElementById('result');

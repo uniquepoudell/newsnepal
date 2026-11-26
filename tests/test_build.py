@@ -121,6 +121,11 @@ with tempfile.TemporaryDirectory() as tmp:
               "logo.svg", "logo-mark.svg", "img/ph-nepal.svg", "img/ph-crypto.svg", "img/ph-visa.svg"):
         assert (tmp / "out" / f).exists(), f
     import xml.etree.ElementTree as ET; ET.parse(tmp / "out" / "feed.xml")
+    # rates page exists in both languages and is in the nav, even when rates are off (offline)
+    rates_off = (tmp / "out" / "rates.html").read_text()
+    assert "AUD to NPR today" in rates_off and "nrb.org.np/forex" in rates_off and "could not be read" in rates_off
+    assert 'href="rates.html"' in page and (tmp / "out" / "rates.ne.html").exists()
+    assert "uniquepoudell.github.io/gorkhapay" in rates_off, "GorkhaPay compare link missing"
     # second build keeps history from items.json even when feeds are empty of new items
     n_calls = len(CALLS)
     n_gen = len(GEN_CALLS)
@@ -144,3 +149,23 @@ assert fx_rates["INR"]["unit"] == 100 and round(fx_rates["INR"]["sell"], 2) == 1
 assert "market rate" in build.render_ticker({"ticker": {"coins": []}}, list(fx_rates.values()), "en")
 build.fetch, build._nrb_rates = _orig_fetch, _orig_nrb
 print("OK: forex fallback")
+
+# Rates page: AUD to NPR today and the full NRB table, from NRB data, in both languages.
+NRB = [{"code": "USD", "unit": 1, "buy": 134.5, "sell": 135.1, "date": "2026-11-26", "src": "nrb"},
+       {"code": "AUD", "unit": 1, "buy": 88.0, "sell": 88.4, "date": "2026-11-26", "src": "nrb"},
+       {"code": "JPY", "unit": 10, "buy": 9.0, "sell": 9.05, "date": "2026-11-26", "src": "nrb"},
+       {"code": "INR", "unit": 100, "buy": 160.0, "sell": 160.15, "date": "2026-11-26", "src": "nrb"}]
+from datetime import datetime, timezone
+when = datetime(2026, 11, 26, 6, 0, tzinfo=timezone.utc)
+en = build.render_rates(cfg, NRB, when, "en", NRB[:2])
+assert "1 Australian dollar =" in en and "Rs 88.00" in en and "Selling Rs 88.40" in en, en[:400]
+assert "<td>1,000</td><td>Rs 88,000.00</td>" in en, "AUD amount table wrong"
+assert 'data-rate="0.900000"' in en, "JPY per-unit rate wrong"
+assert "Japanese yen" in en and "<td>100</td><td>160.00</td>" in en and "2026-11-26" in en
+assert "Nepal Rastra Bank" in en and "not financial advice" in en and "2026-11-26 11:45 (NPT)" in en
+assert 'id="fx-calc" hidden' in en and 'class="ticker"' in en and 'href="rates.html"' in en
+ne = build.render_rates(cfg, NRB, when, "ne")
+assert '<html lang="ne">' in ne and "अस्ट्रेलियन डलर" in ne and "जापानी येन" in ne and 'href="rates.html"' in ne
+mkt = build.render_rates(cfg, [dict(r, src="market", date="", sell=r["buy"]) for r in NRB], when, "en")
+assert "market mid rates" in mkt and "Mid rate" in mkt and "Selling Rs" not in mkt
+print("OK: rates page")
