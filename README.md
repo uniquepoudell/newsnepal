@@ -8,6 +8,8 @@ Built for **newsnepal.crypto** and any regular domain you add later.
 - `config.json` holds the news sources, the keyword filter, and the money settings (ads, sponsor, affiliate links, donation addresses).
 - `scripts/build.py` fetches the feeds, keeps only matching stories, and writes the static site to `public/`. Python standard library only.
 - `.github/workflows/build.yml` rebuilds every hour and publishes to GitHub Pages, and can pin a snapshot to IPFS.
+- `scripts/translate.py` adds Nepali translations with the Claude API (needs the `ANTHROPIC_API_KEY` secret).
+- `scripts/visa_content.py` holds the Australia visa guides and the agent check questions, in English and Nepali.
 - `tests/test_build.py` checks the build offline with sample feeds.
 
 Setup, hosting, the .crypto domain and income ideas are in **[GUIDE.md](GUIDE.md)**.

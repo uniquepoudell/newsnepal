@@ -118,3 +118,52 @@ Nepal Rastra Bank has declared crypto trading and mining illegal in Nepal, and N
 ordered crypto websites blocked in the past. The site is set up as news and education with a disclaimer on every
 page. Keep it that way: no "buy now" buttons, no price predictions, no exchange referrals aimed at Nepal. Ask a
 Nepali lawyer before you accept crypto payments from Nepal-based sponsors.
+
+## Part 4. Nepali version (automatic translation)
+
+Every page now has a Nepali twin: `index.ne.html`, `visa.ne.html` and so on. The **English / नेपाली** button in
+the top bar switches between them. Headlines and summaries are translated by the Claude API during each hourly build.
+Each story is translated only once and saved in `items.json`, so later builds only send new stories.
+
+**Turn it on (5 minutes):**
+
+1. Create an API key at https://platform.claude.com (Settings > API keys) and add a little credit.
+2. In GitHub, open the repo > **Settings > Secrets and variables > Actions > New repository secret**.
+3. Name: `ANTHROPIC_API_KEY`. Value: the key. Save.
+4. Open **Actions > Build and publish > Run workflow**. The log shows lines starting with `Translation:`.
+
+Without the secret the site still builds; Nepali pages show the English headline until a translation exists.
+
+**Cost control** is in `config.json` under `translation`:
+
+- `model`: which Claude model translates. `claude-opus-5-5` gives the best Nepali; `claude-haiku-5-5` costs far less.
+- `max_per_build`: the most stories sent in one hourly run (default 40).
+- `enabled`: set to `false` to stop translating.
+
+Nepali page text that is not a headline (menus, guides, the agent check tool) is written by hand in
+`scripts/build.py` and `scripts/visa_content.py`. Please have a native speaker read it once before you promote the site.
+
+## Part 5. Australia visa section
+
+Pages: `visa.html` (hourly visa news), `check-agent.html` (check your migration agent), `visa-changes-2026.html`
+(what changed, with sources) and `visa-scams.html` (warning signs and where to report). Each has a Nepali twin.
+
+- **News sources** are in `config.json` under `visa.feeds`. A story is kept only if it mentions a visa word and Australia.
+- **Rule changes** are in `scripts/visa_content.py`. Check them against the official Home Affairs page at least
+  once a month and update the "Last checked" date in `render_changes` in `scripts/build.py`.
+
+**Ways it earns money**
+
+- Google AdSense (same account as the rest of the site; set `visa.adsense_slot_top` for the visa page).
+- **Featured registered agents** (`visa.featured_agents`): sell a monthly listing to registered agents and lawyers.
+  Before adding one, look up their MARN on the official register yourself. Never list someone who is not registered.
+- A visa-page sponsor (`visa.sponsor`), for example a college, a remittance company or a tax agent.
+- Referral fees from registered agents are allowed, but the agent must tell their client about the fee
+  (Code of Conduct). Ask them to put that in writing.
+
+**Legal line, important.** In Australia only a registered migration agent or an Australian lawyer may give
+immigration assistance, that is, advise someone on their own visa or help prepare their application. Doing it without
+registration is an offence under the Migration Act, whether or not you charge (with narrow exceptions such as close family).
+So this section must stay general: explain news and official rules, link to official sources, and send people to
+registered agents. Do not answer "what should I do about my visa?" questions in comments, messages or Facebook.
+Do not name or accuse a specific agent unless you are quoting an official decision or court result (defamation risk).
