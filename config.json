@@ -56,7 +56,10 @@
     "_help": "The 'Rates' page (rates.html): AUD to NPR today plus every listed Nepal Rastra Bank rate. 'remittance_compare_url' is the GorkhaPay comparison page; empty hides that box.",
     "currencies": ["USD", "EUR", "GBP", "CHF", "AUD", "CAD", "SGD", "JPY", "CNY", "SAR", "QAR", "THB", "AED", "MYR", "KRW", "SEK", "DKK", "HKD", "KWD", "BHD", "OMR", "INR"],
     "aud_amounts": [100, 500, 1000, 2000, 5000],
-    "remittance_compare_url": "https://uniquepoudell.github.io/gorkhapay/"
+    "remittance_compare_url": "https://uniquepoudell.github.io/gorkhapay/",
+    "_help_history": "Each build reads the last 'fetch_days' days from Nepal Rastra Bank, adds them to rates-history.json from the live site, and writes one fixed page per day (rates-YYYY-MM-DD.html) plus rates-archive.html, keeping up to 'history_days' days.",
+    "fetch_days": 31,
+    "history_days": 400
   },
   "ticker": {
     "_help": "Price strip at the top. 'forex' codes come from Nepal Rastra Bank's daily rates (read at build time). 'coins' are CoinGecko ids, loaded live in the reader's browser. Empty lists hide the strip.",

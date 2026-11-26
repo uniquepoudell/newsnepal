@@ -127,6 +127,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "AUD to NPR today" in rates_off and "nrb.org.np/forex" in rates_off and "could not be read" in rates_off
     assert 'href="rates.html"' in page and (tmp / "out" / "rates.ne.html").exists()
     assert "uniquepoudell.github.io/gorkhapay" in rates_off, "GorkhaPay compare link missing"
+    assert (tmp / "out" / "rates-archive.html").exists() and (tmp / "out" / "rates-archive.ne.html").exists()
+    assert json.loads((tmp / "out" / "rates-history.json").read_text())["days"] == []
     # second build keeps history from items.json even when feeds are empty of new items
     n_calls = len(CALLS)
     n_gen = len(GEN_CALLS)
@@ -169,4 +171,45 @@ ne = build.render_rates(cfg, NRB, when, "ne")
 assert '<html lang="ne">' in ne and "अस्ट्रेलियन डलर" in ne and "जापानी येन" in ne and 'href="rates.html"' in ne
 mkt = build.render_rates(cfg, [dict(r, src="market", date="", sell=r["buy"]) for r in NRB], when, "en")
 assert "market mid rates" in mkt and "Mid rate" in mkt and "Selling Rs" not in mkt
+# Rate history: change arrows on rates.html, one fixed page per NRB day, archive, merge with saved history.
+HIST = [{"date": "2026-11-26", "rates": NRB},
+        {"date": "2026-11-25", "rates": [dict(r, buy=r["buy"] - (0.5 if r["code"] == "AUD" else -0.25) if r["code"] != "JPY" else r["buy"],
+                                              date="2026-11-25") for r in NRB]},
+        {"date": "2026-11-24", "rates": [dict(r, date="2026-11-24") for r in NRB[:2]]}]
+en = build.render_rates(cfg, NRB, when, "en", NRB[:2], HIST)
+assert '<td class="chg up"><span aria-hidden="true">▲</span> +0.50</td>' in en, "AUD rise arrow missing"
+assert '<td class="chg down"><span aria-hidden="true">▼</span> −0.25</td>' in en, "USD fall arrow missing"
+assert '<td class="chg same">0.00</td>' in en and "previous published day (2026-11-25)" in en
+assert 'href="rates-2026-11-25.html"' in en and 'href="rates-2026-11-26.html"' not in en and 'href="rates-archive.html"' in en
+assert "<th>Change</th>" not in build.render_rates(cfg, NRB, when, "en"), "change column without history"
+mid = build.render_rates_day(cfg, HIST, 1, "en")
+assert "NRB exchange rate on 2026-11-25" in mid and "Rs 87.50" in mid
+assert 'href="rates-2026-11-24.html" rel="prev"' in mid and 'href="rates-2026-11-26.html" rel="next"' in mid
+assert "previous published day (2026-11-24)" in mid, "day page compares with the wrong day"
+assert 'aria-current="page">Rates<' in mid and "uniquepoudell.github.io/gorkhapay" in mid and "not financial advice" in mid
+last = build.render_rates_day(cfg, HIST, 2, "ne")
+assert 'rel="prev"' not in last and '<html lang="ne">' in last and 'href="rates-2026-11-25.ne.html" rel="next"' in last
+assert "<th>फरक</th>" not in last, "oldest day has no previous day to compare"
+arch = build.render_rates_archive(cfg, HIST, "en")
+assert "<h2>2026-11</h2>" in arch and arch.index("2026-11-26") < arch.index("2026-11-24") and "AUD Rs 88.00" in arch
+assert "could not be read" in build.render_rates_archive(cfg, [], "en")
+merged = build.merge_rate_history([{"date": "2026-11-26", "rates": ["new"]}],
+                                  [{"date": "2026-11-26", "rates": ["old"]}, {"date": "2025-01-01", "rates": ["x"]},
+                                   {"date": "../evil", "rates": ["x"]}, {"date": "2026-11-20", "rates": []}], keep_days=5)
+assert merged == [{"date": "2026-11-26", "rates": ["new"]}, {"date": "2025-01-01", "rates": ["x"]}], merged
+assert len(build.merge_rate_history([{"date": f"2026-01-{d:02d}", "rates": [1]} for d in range(1, 21)], [], 7)) == 7
+# NRB history parsing (network stubbed): pages followed, days keyed by date, newest first.
+_orig_payload = build._nrb_payload
+def _fake_payload(start, end, per_page=100, max_pages=5):
+    return [{"date": "2026-11-25", "rates": [{"currency": {"iso3": "AUD", "unit": 1}, "buy": "87.50", "sell": "87.9"}]},
+            {"date": "2026-11-26", "rates": [{"currency": {"iso3": "aud", "unit": 1}, "buy": "88", "sell": "88.4"},
+                                             {"currency": {"iso3": "JPY", "unit": 10}, "buy": "9", "sell": "9.05"}]},
+            {"date": "2026-11-23", "rates": []}]
+build._nrb_payload = _fake_payload
+hist = build.nrb_history(["AUD", "JPY"])
+assert [d["date"] for d in hist] == ["2026-11-26", "2026-11-25"], hist
+assert hist[0]["rates"][1] == {"code": "JPY", "unit": 10, "buy": 9.0, "sell": 9.05, "date": "2026-11-26", "src": "nrb"}
+build._nrb_payload = lambda *a, **k: (_ for _ in ()).throw(ConnectionError("closed"))
+assert build.nrb_history(["AUD"]) == []
+build._nrb_payload = _orig_payload
 print("OK: rates page")
