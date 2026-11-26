@@ -83,7 +83,7 @@
     "generate": {
       "enabled": true,
       "provider": "auto",
-      "_provider_help": "auto = Cloudflare Workers AI when the CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN secrets are set, otherwise the free pollinations.ai service. Or set cloudflare, pollinations or off.",
+      "_provider_help": "auto or cloudflare = Cloudflare Workers AI, used when the CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN secrets are set (GUIDE.md Part 8). off = never make illustrations.",
       "per_build": 6,
       "style": ""
     }

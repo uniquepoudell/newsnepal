@@ -1225,6 +1225,9 @@ def illustrate_items(cfg: dict, items: list[dict], out: Path) -> None:
     settings = (cfg.get("images") or {}).get("generate") or {}
     if not settings.get("enabled", False) or os.environ.get("NO_IMAGE_GEN") == "1":
         return
+    if not illustrate.providers_for(settings.get("provider", "auto")):
+        print("  illustrations: off (add the CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN secrets, see GUIDE.md Part 8)")
+        return
     budget = int(settings.get("per_build", 6))
     base = cfg["site"].get("base_url", "").rstrip("/")
     (out / "gen").mkdir(parents=True, exist_ok=True)

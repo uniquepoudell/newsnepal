@@ -3,11 +3,11 @@
 Each picture is made once per story by a text-to-image model, saved as public/gen/<id>.jpg and reused on
 later builds (it is downloaded back from the live site, so nothing is committed to the repository).
 
-Providers, in order:
-  cloudflare   Cloudflare Workers AI, FLUX.1 [schnell]. Needs the CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN
-               secrets. Free for about 50 to 150 pictures a day (10,000 free "neurons" daily), then
-               roughly US$0.002 a picture on the paid Workers plan.
-  pollinations pollinations.ai, free and needs no key, but slower and with no guarantee it stays up.
+Provider: Cloudflare Workers AI, FLUX.1 [schnell]. Needs the CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_TOKEN
+secrets. Free for about 50 to 150 pictures a day (10,000 free "neurons" daily), then roughly US$0.001 to
+US$0.002 a picture on the paid Workers plan. Without the secrets no pictures are made and stories keep the
+branded placeholder. (The free no-key service pollinations.ai was tried on 2026-11-26 and now answers
+"402 Payment Required", so it is not used.)
 
 A picture that fails is simply skipped: the story keeps the branded placeholder and is tried again next build.
 """
@@ -18,7 +18,6 @@ import hashlib
 import json
 import os
 import re
-import urllib.parse
 import urllib.request
 
 UA = "Mozilla/5.0 (compatible; NewsNepalBot/1.0; +https://uniquepoudell.github.io/newsnepal/)"
@@ -76,16 +75,7 @@ def cloudflare(prompt: str, seed: int, timeout: int = 60) -> bytes:
     return base64.b64decode(img)
 
 
-def pollinations(prompt: str, seed: int, timeout: int = 90) -> bytes:
-    q = urllib.parse.urlencode({"width": 1024, "height": 576, "seed": seed, "model": "flux",
-                                "nologo": "true", "private": "true"})
-    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt[:1200], safe="") + "?" + q
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "image/*"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read()
-
-
-PROVIDERS = {"cloudflare": cloudflare, "pollinations": pollinations}
+PROVIDERS = {"cloudflare": cloudflare}
 
 
 def providers_for(setting: str) -> list[str]:
@@ -93,11 +83,9 @@ def providers_for(setting: str) -> list[str]:
         return [setting]
     if setting == "off":
         return []
-    order = []
     if os.environ.get("CLOUDFLARE_ACCOUNT_ID") and os.environ.get("CLOUDFLARE_AI_TOKEN"):
-        order.append("cloudflare")
-    order.append("pollinations")
-    return order
+        return ["cloudflare"]
+    return []
 
 
 def generate(it: dict, cfg: dict) -> bytes:

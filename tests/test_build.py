@@ -31,6 +31,7 @@ def _fake_generate(it, cfg):
     GEN_CALLS.append(illustrate.make_prompt(it))
     return b"\xff\xd8\xff" + b"0" * 5000
 illustrate.generate = _fake_generate
+os.environ["CLOUDFLARE_ACCOUNT_ID"], os.environ["CLOUDFLARE_AI_TOKEN"] = "test", "test"
 
 # Google-style parsing is keyed on the URL; patch the parser to treat the fixture as Google News.
 orig = build.parse_feed
