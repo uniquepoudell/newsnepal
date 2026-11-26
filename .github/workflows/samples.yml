@@ -1,4 +1,4 @@
-name: Illustration samples (temporary)
+name: Illustration samples (temporary, run 2)
 on:
   push:
     branches: [claude/project-thread-tthqto]
