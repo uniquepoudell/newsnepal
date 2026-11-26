@@ -6,9 +6,9 @@
     "max_items": 120,
     "max_age_days": 10,
     "summary_chars": 240,
-    "language": "en"
+    "language": "en",
+    "tagline_ne": "नेपालका लागि डिजिटल मुद्रा, ब्लकचेन र वित्त समाचार, हरेक घण्टा अपडेट।"
   },
-
   "monetization": {
     "_help": "Leave a value empty to hide it. See GUIDE.md, section 'Making money'.",
     "adsense_client": "",
@@ -20,56 +20,311 @@
       "url": ""
     },
     "affiliate_links": [
-      { "label": "", "url": "", "note": "" }
+      {
+        "label": "",
+        "url": "",
+        "note": ""
+      }
     ],
     "donations": {
       "message": "Like this site? Support independent news with a small tip.",
       "addresses": [
-        { "coin": "ETH / USDT (Ethereum)", "address": "" },
-        { "coin": "BTC", "address": "" }
+        {
+          "coin": "ETH / USDT (Ethereum)",
+          "address": ""
+        },
+        {
+          "coin": "BTC",
+          "address": ""
+        }
       ],
-      "unstoppable_domain": "newsnepal.crypto"
+      "unstoppable_domain": "newsnepal.crypto",
+      "message_ne": "साइट मन पर्यो? स्वतन्त्र समाचारलाई सानो सहयोग गर्नुहोस्।"
     },
     "contact_email": ""
   },
-
   "keywords": {
     "_help": "A story is kept when its title or summary contains any 'include' word (for feeds with filter: true) and none of the 'exclude' words. Matching ignores case and works on whole words.",
     "include": [
-      "bitcoin", "btc", "ethereum", "eth", "crypto", "cryptocurrency", "cryptocurrencies",
-      "blockchain", "stablecoin", "stablecoins", "token", "tokens", "defi", "web3", "nft", "nfts",
-      "cbdc", "digital currency", "digital currencies", "digital rupee", "e-rupee", "digital payment",
-      "digital payments", "fintech", "wallet", "mining", "halving",
-      "nepse", "share market", "stock market", "stocks", "ipo", "rastra bank", "nrb", "central bank",
-      "monetary policy", "interest rate", "interest rates", "inflation", "remittance", "remittances",
-      "rupee", "exchange rate", "forex", "foreign exchange", "bank", "banks", "banking",
-      "finance", "financial", "economy", "economic", "budget", "gdp", "investment", "loan", "loans",
-      "insurance", "esewa", "khalti", "fonepay", "qr payment", "sebon", "securities"
+      "bitcoin",
+      "btc",
+      "ethereum",
+      "eth",
+      "crypto",
+      "cryptocurrency",
+      "cryptocurrencies",
+      "blockchain",
+      "stablecoin",
+      "stablecoins",
+      "token",
+      "tokens",
+      "defi",
+      "web3",
+      "nft",
+      "nfts",
+      "cbdc",
+      "digital currency",
+      "digital currencies",
+      "digital rupee",
+      "e-rupee",
+      "digital payment",
+      "digital payments",
+      "fintech",
+      "wallet",
+      "mining",
+      "halving",
+      "nepse",
+      "share market",
+      "stock market",
+      "stocks",
+      "ipo",
+      "rastra bank",
+      "nrb",
+      "central bank",
+      "monetary policy",
+      "interest rate",
+      "interest rates",
+      "inflation",
+      "remittance",
+      "remittances",
+      "rupee",
+      "exchange rate",
+      "forex",
+      "foreign exchange",
+      "bank",
+      "banks",
+      "banking",
+      "finance",
+      "financial",
+      "economy",
+      "economic",
+      "budget",
+      "gdp",
+      "investment",
+      "loan",
+      "loans",
+      "insurance",
+      "esewa",
+      "khalti",
+      "fonepay",
+      "qr payment",
+      "sebon",
+      "securities"
     ],
     "exclude": [
-      "sponsored", "press release", "price prediction", "casino", "betting", "gambling", "airdrop"
+      "sponsored",
+      "press release",
+      "price prediction",
+      "casino",
+      "betting",
+      "gambling",
+      "airdrop"
     ]
   },
-
   "categories": [
-    { "id": "nepal", "label": "Nepal Finance" },
-    { "id": "crypto", "label": "Crypto & Blockchain" },
-    { "id": "global", "label": "Global Markets" }
+    {
+      "id": "nepal",
+      "label": "Nepal Finance",
+      "label_i18n": {
+        "en": "Nepal Finance",
+        "ne": "नेपाल वित्त"
+      }
+    },
+    {
+      "id": "crypto",
+      "label": "Crypto & Blockchain",
+      "label_i18n": {
+        "en": "Crypto & Blockchain",
+        "ne": "क्रिप्टो र ब्लकचेन"
+      }
+    },
+    {
+      "id": "global",
+      "label": "Global Markets",
+      "label_i18n": {
+        "en": "Global Markets",
+        "ne": "विश्व बजार"
+      }
+    }
   ],
-
   "feeds": [
-    { "name": "CoinDesk", "url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "category": "crypto", "filter": false },
-    { "name": "Cointelegraph", "url": "https://cointelegraph.com/rss", "category": "crypto", "filter": false },
-    { "name": "Decrypt", "url": "https://decrypt.co/feed", "category": "crypto", "filter": false },
-    { "name": "Bitcoin Magazine", "url": "https://bitcoinmagazine.com/.rss/full/", "category": "crypto", "filter": false },
-
-    { "name": "ShareSansar", "url": "https://news.google.com/rss/search?q=site:sharesansar.com&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
-    { "name": "Merolagani", "url": "https://news.google.com/rss/search?q=site:merolagani.com&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
-    { "name": "Nepal Rastra Bank news", "url": "https://news.google.com/rss/search?q=%22Nepal+Rastra+Bank%22&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
-    { "name": "NEPSE news", "url": "https://news.google.com/rss/search?q=NEPSE+OR+%22Nepal+Stock+Exchange%22&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
-    { "name": "Nepal economy news", "url": "https://news.google.com/rss/search?q=Nepal+economy+OR+Nepal+banking+OR+Nepal+remittance&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
-    { "name": "Nepal digital currency news", "url": "https://news.google.com/rss/search?q=Nepal+cryptocurrency+OR+Nepal+CBDC+OR+Nepal+%22digital+currency%22&hl=en-NP&gl=NP&ceid=NP:en", "category": "nepal", "filter": true },
-
-    { "name": "Global finance news", "url": "https://news.google.com/rss/search?q=central+bank+digital+currency+OR+stablecoin+regulation&hl=en&gl=US&ceid=US:en", "category": "global", "filter": true }
-  ]
+    {
+      "name": "CoinDesk",
+      "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+      "category": "crypto",
+      "filter": false
+    },
+    {
+      "name": "Cointelegraph",
+      "url": "https://cointelegraph.com/rss",
+      "category": "crypto",
+      "filter": false
+    },
+    {
+      "name": "Decrypt",
+      "url": "https://decrypt.co/feed",
+      "category": "crypto",
+      "filter": false
+    },
+    {
+      "name": "Bitcoin Magazine",
+      "url": "https://bitcoinmagazine.com/.rss/full/",
+      "category": "crypto",
+      "filter": false
+    },
+    {
+      "name": "ShareSansar",
+      "url": "https://news.google.com/rss/search?q=site:sharesansar.com&hl=en-NP&gl=NP&ceid=NP:en",
+      "category": "nepal",
+      "filter": true
+    },
+    {
+      "name": "Merolagani",
+      "url": "https://news.google.com/rss/search?q=site:merolagani.com&hl=en-NP&gl=NP&ceid=NP:en",
+      "category": "nepal",
+      "filter": true
+    },
+    {
+      "name": "Nepal Rastra Bank news",
+      "url": "https://news.google.com/rss/search?q=%22Nepal+Rastra+Bank%22&hl=en-NP&gl=NP&ceid=NP:en",
+      "category": "nepal",
+      "filter": true
+    },
+    {
+      "name": "NEPSE news",
+      "url": "https://news.google.com/rss/search?q=NEPSE+OR+%22Nepal+Stock+Exchange%22&hl=en-NP&gl=NP&ceid=NP:en",
+      "category": "nepal",
+      "filter": true
+    },
+    {
+      "name": "Nepal economy news",
+      "url": "https://news.google.com/rss/search?q=Nepal+economy+OR+Nepal+banking+OR+Nepal+remittance&hl=en-NP&gl=NP&ceid=NP:en",
+      "category": "nepal",
+      "filter": true
+    },
+    {
+      "name": "Nepal digital currency news",
+      "url": "https://news.google.com/rss/search?q=Nepal+cryptocurrency+OR+Nepal+CBDC+OR+Nepal+%22digital+currency%22&hl=en-NP&gl=NP&ceid=NP:en",
+      "category": "nepal",
+      "filter": true
+    },
+    {
+      "name": "Global finance news",
+      "url": "https://news.google.com/rss/search?q=central+bank+digital+currency+OR+stablecoin+regulation&hl=en&gl=US&ceid=US:en",
+      "category": "global",
+      "filter": true
+    }
+  ],
+  "translation": {
+    "_help": "Nepali translation of headlines and summaries with the Claude API. Needs the ANTHROPIC_API_KEY secret (see GUIDE.md). Each story is translated once and saved; max_per_build caps cost per hourly run. Set enabled to false to turn it off.",
+    "enabled": true,
+    "model": "claude-haiku-5-5",
+    "effort": "low",
+    "max_per_build": 40,
+    "batch_size": 15
+  },
+  "visa": {
+    "_help": "Australia visa section. Stories must match an 'include' word AND a 'require' word (Australia). Nepali words match inside longer words. featured_agents are paid listings: only add agents whose MARN you have checked on the official register.",
+    "max_items": 60,
+    "adsense_slot_top": "",
+    "sponsor": {
+      "text": "",
+      "url": ""
+    },
+    "featured_agents": [
+      {
+        "name": "",
+        "marn": "",
+        "business": "",
+        "city": "",
+        "languages": "",
+        "url": ""
+      }
+    ],
+    "keywords": {
+      "include": [
+        "visa",
+        "visas",
+        "migration",
+        "migrant",
+        "migrants",
+        "immigration",
+        "international student",
+        "international students",
+        "student visa",
+        "graduate visa",
+        "skilled",
+        "permanent residency",
+        "permanent residence",
+        "PR",
+        "subclass",
+        "Home Affairs",
+        "OMARA",
+        "migration agent",
+        "sponsorship",
+        "citizenship",
+        "work rights",
+        "working holiday",
+        "partner visa",
+        "भिसा",
+        "आप्रवासन",
+        "आप्रवासी",
+        "अन्तर्राष्ट्रिय विद्यार्थी",
+        "स्थायी बसोबास",
+        "माइग्रेसन"
+      ],
+      "require": [
+        "Australia",
+        "Australian",
+        "Australians",
+        "अस्ट्रेलिया",
+        "अष्ट्रेलिया"
+      ],
+      "exclude": [
+        "sponsored",
+        "press release",
+        "casino",
+        "betting"
+      ]
+    },
+    "feeds": [
+      {
+        "name": "Australia student visa news",
+        "url": "https://news.google.com/rss/search?q=Australia+student+visa&hl=en-AU&gl=AU&ceid=AU:en",
+        "category": "visa",
+        "filter": true
+      },
+      {
+        "name": "Nepali students in Australia",
+        "url": "https://news.google.com/rss/search?q=Nepal+OR+Nepali+OR+Nepalese+Australia+visa+OR+students+OR+migrants&hl=en-AU&gl=AU&ceid=AU:en",
+        "category": "visa",
+        "filter": true
+      },
+      {
+        "name": "Home Affairs visa changes",
+        "url": "https://news.google.com/rss/search?q=%22Home+Affairs%22+visa+changes&hl=en-AU&gl=AU&ceid=AU:en",
+        "category": "visa",
+        "filter": true
+      },
+      {
+        "name": "SBS Nepali",
+        "url": "https://news.google.com/rss/search?q=site:sbs.com.au/language/nepali&hl=en-AU&gl=AU&ceid=AU:en",
+        "category": "visa",
+        "filter": true
+      },
+      {
+        "name": "Kathmandu Post diaspora",
+        "url": "https://news.google.com/rss/search?q=site:kathmandupost.com+Australia&hl=en-AU&gl=AU&ceid=AU:en",
+        "category": "visa",
+        "filter": true
+      },
+      {
+        "name": "Nepali news: Australia visa",
+        "url": "https://news.google.com/rss/search?q=%E0%A4%85%E0%A4%B8%E0%A5%8D%E0%A4%9F%E0%A5%8D%E0%A4%B0%E0%A5%87%E0%A4%B2%E0%A4%BF%E0%A4%AF%E0%A4%BE+%E0%A4%AD%E0%A4%BF%E0%A4%B8%E0%A4%BE&hl=ne&gl=NP&ceid=NP:ne",
+        "category": "visa",
+        "filter": true,
+        "lang": "ne"
+      }
+    ]
+  }
 }

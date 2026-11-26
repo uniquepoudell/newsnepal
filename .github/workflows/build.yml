@@ -34,11 +34,16 @@ jobs:
       - name: Run offline tests
         run: python tests/test_build.py
 
+      - name: Install the Claude API client (for Nepali translation)
+        run: pip install --quiet anthropic
+
       - name: Build the site from live feeds
         env:
           # Your own domain (for example newsnepal.com). Set it under Settings > Secrets and variables > Actions > Variables.
           CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
           SITE_BASE_URL: ${{ vars.CUSTOM_DOMAIN != '' && format('https://{0}', vars.CUSTOM_DOMAIN) || steps.pages.outputs.base_url }}
+          # Nepali translation. Add it under Settings > Secrets and variables > Actions > Secrets. Optional.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python scripts/build.py --out public
 
       - uses: actions/upload-pages-artifact@v3
