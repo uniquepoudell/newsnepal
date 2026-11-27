@@ -9,8 +9,10 @@ Rank by: more readers or more income per hour of work. Keep each item small enou
     - ~~"AUD to NPR today" and "NRB exchange rate today" pages~~ Done 2026-11-26 (PR #12, `rates.html`).
     - ~~Daily dated rate pages~~ Done 2026-11-26 (PR #15): `rates-YYYY-MM-DD.html`, `rates-archive.html`, change
       arrows on `rates.html`. History = last 31 NRB days per build merged with live `rates-history.json`.
-    - **Next:** per-currency landing pages for the big remittance corridors: `rates/sar-to-npr.html`, `qar-`, `aed-`,
-      `myr-`, `krw-`, `usd-`, each with an amounts table and the GorkhaPay link.
+    - ~~Per-currency landing pages~~ Done 2026-11-27 (PR #18): `aud-`, `sar-`, `qar-`, `aed-`, `myr-`, `krw-`,
+      `usd-to-npr.html` (+ Nepali), amounts table, last 14 NRB days. GorkhaPay link only on AUD (it compares AUD only).
+    - **Next:** a Nepali-first headline on the corridor pages (e.g. "साउदी रियाल आजको दर") and adding `kwd-`, `bhd-`,
+      `omr-`, `jpy-to-npr` once we see which pages Search Console shows (needs own domain + Search Console).
     - "Gold and silver price today in Nepal" (only from the official FENEGOSIDA published rate; skip if no
       reliable source can be read automatically).
     - "IPO calendar Nepal": open and upcoming IPOs from the NEPSE / SEBON news we already collect, with links to
@@ -43,6 +45,9 @@ Rank by: more readers or more income per hour of work. Keep each item small enou
     2026-11-26 build: SBS Nepali keeps 1 of 69 and "Nepali news: Australia visa" 0 of 3; check their keyword match.
 
 ## Done
+- 2026-11-27: Currency landing pages (`sar-to-npr.html` etc., PR #18).
+- 2026-11-27: NRB API retries + last saved NRB day before market fallback (PR #17). Builds 2026-11-26 11:54 to
+  2026-11-27 02:55 UTC had shown market rates because NRB dropped requests.
 - 2026-11-26: Dated daily NRB rate pages + archive + day-on-day change arrows (PR #15).
 - 2026-11-26: Rates page: AUD to NPR today, full NRB table (22 currencies), converter, GorkhaPay link (PR #12).
 - 2026-11-26: redesign, logo, topic chips, search, dark mode, share, ticker, support page with Stripe link.

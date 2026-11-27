@@ -1183,6 +1183,7 @@ def render_rates(cfg: dict, rates: list[dict], built_at: datetime, lang: str, ti
     if gp:
         parts.append(f'<aside class="box send-box"><h2>{x["send_h"]}</h2><p>{x["send_p"]}</p>'
                      f'<a class="btn btn-support" href="{esc(gp)}">{x["send_btn"]}</a></aside>')
+    parts.append(corridor_links_html(cfg, lang))
     parts.append(recent_days_html(history or [], lang, skip=date[:10] if src == "nrb" else ""))
     parts.append(f'<p class="muted small"><a href="{NRB_FOREX_PAGE}" rel="noopener">{x["official"]}</a>. {x["fine"]}</p>')
     return page_shell(cfg, lang, "rates", f'{x["title"]} | {s["title"]}',
@@ -1241,6 +1242,120 @@ def render_rates_archive(cfg: dict, history: list[dict], lang: str) -> str:
     return page_shell(cfg, lang, "rates-archive", f'{x["arch_title"]} | {s["title"]}',
                       f'<main id="main" class="wrap prose rates-page">{"".join(parts)}</main>',
                       description=x["arch_desc"], nav_as="rates")
+
+
+CORRIDOR_TEXT = {
+    "en": {
+        "title": "{name} ({code}) to Nepali rupee (NPR) today: {code} to NPR rate",
+        "desc": "Today's {name} to Nepali rupee rate from Nepal Rastra Bank: 1 {code} in rupees, an amounts table and the rate for the last two weeks. For Nepalis sending money home from {country}.",
+        "h1": "{name} ({code}) to Nepali rupee today",
+        "big": "1 {code} =", "per": "{unit} {code} =",
+        "amounts": "{code} amounts in rupees", "npr": "NPR (at the buying rate)",
+        "recent": "{code} to NPR, last {n} NRB days", "date": "Date",
+        "tip_h": "Before you send money home",
+        "tip_p": "Banks and remittance companies pay out at their own rate, usually a little below the NRB rate, and some add a fee. Ask for the final rupee amount your family will receive and compare it with this rate.",
+        "other": "Other currencies to NPR", "all": "All NRB exchange rates →",
+    },
+    "ne": {
+        "title": "आजको {name_ne} ({code}) देखि नेपाली रुपैयाँ दर: {code} to NPR",
+        "desc": "नेपाल राष्ट्र बैंकको आजको {name_ne} देखि नेपाली रुपैयाँ दर: १ {code} कति रुपैयाँ, रकम तालिका र पछिल्ला दुई हप्ताको दर। {country_ne} बाट घर पैसा पठाउने नेपालीका लागि।",
+        "h1": "आजको {name_ne} ({code}) दर नेपाली रुपैयाँमा",
+        "big": "१ {code} =", "per": "{unit} {code} =",
+        "amounts": "{code} रकम रुपैयाँमा", "npr": "रुपैयाँ (खरिद दरमा)",
+        "recent": "{code} देखि रुपैयाँ, राष्ट्र बैंकका पछिल्ला {n} दिन", "date": "मिति",
+        "tip_h": "घर पैसा पठाउनुअघि",
+        "tip_p": "बैंक र रेमिट्यान्स कम्पनीले आफ्नै दरमा भुक्तानी गर्छन्, जुन प्रायः राष्ट्र बैंकको दरभन्दा अलि कम हुन्छ, र कतिपयले शुल्क पनि लिन्छन्। परिवारले अन्तमा कति रुपैयाँ पाउँछ सोध्नुहोस् र यो दरसँग तुलना गर्नुहोस्।",
+        "other": "अन्य मुद्रादेखि रुपैयाँ", "all": "राष्ट्र बैंकका सबै दर →",
+    },
+}
+
+DEFAULT_CORRIDORS = [
+    {"code": "AUD", "country": "Australia", "country_ne": "अस्ट्रेलिया", "amounts": [100, 500, 1000, 2000, 5000]},
+    {"code": "SAR", "country": "Saudi Arabia", "country_ne": "साउदी अरब", "amounts": [100, 500, 1000, 2000, 5000]},
+    {"code": "QAR", "country": "Qatar", "country_ne": "कतार", "amounts": [100, 500, 1000, 2000, 5000]},
+    {"code": "AED", "country": "the UAE", "country_ne": "यूएई", "amounts": [100, 500, 1000, 2000, 5000]},
+    {"code": "MYR", "country": "Malaysia", "country_ne": "मलेसिया", "amounts": [100, 500, 1000, 2000, 5000]},
+    {"code": "KRW", "country": "South Korea", "country_ne": "दक्षिण कोरिया", "amounts": [10000, 100000, 500000, 1000000, 2000000]},
+    {"code": "USD", "country": "the United States", "country_ne": "अमेरिका", "amounts": [100, 500, 1000, 2000, 5000]},
+]
+
+
+def corridor_page(code: str) -> str:
+    return f"{code.lower()}-to-npr"
+
+
+def corridors(cfg: dict) -> list[dict]:
+    rp = cfg.get("rates_page") or {}
+    out = [c for c in rp.get("corridors", DEFAULT_CORRIDORS) if re.fullmatch(r"[A-Za-z]{3}", str(c.get("code", "")))]
+    return [dict(c, code=c["code"].upper()) for c in out]
+
+
+def render_corridor(cfg: dict, corridor: dict, rates: list[dict], built_at: datetime, lang: str,
+                    history: list[dict] | None = None) -> str:
+    """'SAR to NPR today' style landing page for one currency: rate, amounts table, recent NRB days.
+    Server-rendered and indexable; returns the page even when rates are missing (shows the 'none' box)."""
+    s, x, rx = cfg["site"], CORRIDOR_TEXT[lang], RATES_TEXT[lang]
+    rp = cfg.get("rates_page") or {}
+    code = corridor["code"]
+    name_en, name_ne = CURRENCY_NAMES.get(code, (code, code))
+    fmt = {"code": code, "name": name_en, "name_ne": name_ne, "country": corridor.get("country", ""),
+           "country_ne": corridor.get("country_ne", corridor.get("country", ""))}
+    r = next((r for r in rates if r["code"] == code), None)
+    parts = [f'<p class="crumbs"><a href="{page_file("rates", lang)}">{rx["today_link"]}</a></p>',
+             f'<h1>{esc(x["h1"].format(**fmt))}</h1>']
+    if r:
+        checked = built_at.astimezone(NEPAL_TZ).strftime("%Y-%m-%d %H:%M")
+        source = rx["src_nrb"].format(date=esc(r.get("date", ""))) if r.get("src") == "nrb" else rx["src_market"]
+        parts.append(f'<p class="updated">{source} {rx["checked"]}: {checked} (NPT)</p>')
+        per = r["buy"] / r["unit"]
+        same = abs(r["buy"] - r["sell"]) < 1e-9
+        label = x["big"].format(code=esc(code)) if r["unit"] == 1 else x["per"].format(unit=r["unit"], code=esc(code))
+        parts.append(f'<div class="rate-big"><span class="rb-l">{label}</span> <span class="rb-v">Rs {_rs(r["buy"])}</span>'
+                     f'<span class="rb-s">{rx["mid"] if same else rx["buy"]}'
+                     + ("" if same else f' · {rx["sell"]} Rs {_rs(r["sell"])}') + '</span></div>')
+        rows = "".join(f'<tr><td>{n:,}</td><td>Rs {_rs(n * per)}</td></tr>' for n in corridor.get("amounts") or [100, 1000])
+        parts.append(f'<h2>{esc(x["amounts"].format(code=code))}</h2><table class="rates aud-table"><thead><tr>'
+                     f'<th>{esc(code)}</th><th>{x["npr"]}</th></tr></thead><tbody>{rows}</tbody></table>')
+    else:
+        parts.append(f'<p class="box">{rx["none"]}</p>')
+    days = []
+    for d in history or []:
+        hr = next((h for h in d["rates"] if h["code"] == code), None)
+        if hr:
+            days.append((d["date"], hr))
+        if len(days) == 15:
+            break
+    if days:
+        body = []
+        for i, (date, hr) in enumerate(days[:14]):
+            prev = days[i + 1][1] if i + 1 < len(days) else None
+            chg = _change(hr, {code: prev} if prev else {})
+            body.append(f'<tr><td><a href="{page_file(day_page(date), lang)}">{esc(date)}</a></td><td>{hr["unit"]}</td>'
+                        f'<td>{_rs(hr["buy"])}</td><td>{_rs(hr["sell"])}</td>{chg}</tr>')
+        parts.append(f'<h2>{esc(x["recent"].format(code=code, n=len(body)))}</h2><div class="table-scroll"><table class="rates">'
+                     f'<thead><tr><th>{x["date"]}</th><th>{rx["unit"]}</th><th>{rx["buy"]}</th><th>{rx["sell"]}</th>'
+                     f'<th>{rx["chg"]}</th></tr></thead><tbody>{"".join(body)}</tbody></table></div>')
+    gp = (rp.get("remittance_compare_url") or "").strip()
+    if code == "AUD" and gp:
+        parts.append(f'<aside class="box send-box"><h2>{rx["send_h"]}</h2><p>{rx["send_p"]}</p>'
+                     f'<a class="btn btn-support" href="{esc(gp)}">{rx["send_btn"]}</a></aside>')
+    else:
+        parts.append(f'<aside class="box send-box"><h2>{x["tip_h"]}</h2><p>{x["tip_p"]}</p></aside>')
+    others = "".join(f'<li><a href="{page_file(corridor_page(c["code"]), lang)}">{esc(c["code"])} → NPR</a></li>'
+                     for c in corridors(cfg) if c["code"] != code)
+    if others:
+        parts.append(f'<h2>{x["other"]}</h2><ul class="day-list">{others}</ul>')
+    parts.append(f'<p><a href="{page_file("rates", lang)}">{x["all"]}</a></p>')
+    parts.append(f'<p class="muted small"><a href="{NRB_FOREX_PAGE}" rel="noopener">{rx["official"]}</a>. {rx["fine"]}</p>')
+    return page_shell(cfg, lang, corridor_page(code), f'{x["title"].format(**fmt)} | {s["title"]}',
+                      f'<main id="main" class="wrap prose rates-page">{"".join(parts)}</main>',
+                      description=x["desc"].format(**fmt), nav_as="rates")
+
+
+def corridor_links_html(cfg: dict, lang: str) -> str:
+    lis = "".join(f'<li><a href="{page_file(corridor_page(c["code"]), lang)}">{esc(c["code"])} → NPR</a></li>'
+                  for c in corridors(cfg))
+    return f'<h2>{CORRIDOR_TEXT[lang]["other"]}</h2><ul class="day-list">{lis}</ul>' if lis else ""
 
 
 def merge_rate_history(fresh: list[dict], previous: list[dict], keep_days: int = 400) -> list[dict]:
@@ -1781,6 +1896,10 @@ def build(config_path: Path, out: Path) -> dict:
         ):
             name = page_file(base_name, lang)
             (out / name).write_text(html_text, "utf-8")
+            pages.append(name)
+        for c in corridors(cfg):
+            name = page_file(corridor_page(c["code"]), lang)
+            (out / name).write_text(render_corridor(cfg, c, rate_table, now, lang, history), "utf-8")
             pages.append(name)
         for i, d in enumerate(history):
             name = page_file(day_page(d["date"]), lang)
