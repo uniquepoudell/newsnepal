@@ -129,6 +129,10 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "uniquepoudell.github.io/gorkhapay" in rates_off, "GorkhaPay compare link missing"
     assert (tmp / "out" / "rates-archive.html").exists() and (tmp / "out" / "rates-archive.ne.html").exists()
     assert json.loads((tmp / "out" / "rates-history.json").read_text())["days"] == []
+    for _f in ("sar-to-npr.html", "sar-to-npr.ne.html", "aud-to-npr.html", "krw-to-npr.ne.html"):
+        assert (tmp / "out" / _f).exists(), _f
+    if (tmp / "out" / "sitemap.xml").exists():
+        assert "sar-to-npr.html" in (tmp / "out" / "sitemap.xml").read_text()
     # second build keeps history from items.json even when feeds are empty of new items
     n_calls = len(CALLS)
     n_gen = len(GEN_CALLS)
@@ -236,4 +240,25 @@ assert build.saved_nrb_day(_saved, _today) == _saved[0]["rates"]
 assert build.saved_nrb_day(_saved, _dt.date(2026, 12, 5)) == [], "too old to call today's rate"
 assert build.saved_nrb_day([], _today) == [] and build.saved_nrb_day([{"date": "bad", "rates": NRB}], _today) == []
 assert build.saved_nrb_day([{"date": "2026-11-26", "rates": [dict(NRB[0], src="market")]}], _today) == []
+# Per-currency landing pages (SAR to NPR today ...): rate, amounts, recent days, honest send box.
+_c = {c["code"]: c for c in build.corridors(cfg)}
+assert {"AUD", "SAR", "QAR", "AED", "MYR", "KRW", "USD"} <= set(_c), _c
+assert build.corridor_page("SAR") == "sar-to-npr"
+_rates = NRB + [{"code": "SAR", "unit": 1, "buy": 35.8, "sell": 36.0, "date": "2026-11-26", "src": "nrb"},
+                {"code": "KRW", "unit": 100, "buy": 9.6, "sell": 9.65, "date": "2026-11-26", "src": "nrb"}]
+_h = [{"date": "2026-11-26", "rates": _rates}, {"date": "2026-11-25", "rates": [dict(_rates[-2], buy=35.5, date="2026-11-25")]}]
+sar = build.render_corridor(cfg, _c["SAR"], _rates, when, "en", _h)
+assert "Saudi riyal (SAR) to Nepali rupee today" in sar and "1 SAR =" in sar and "Rs 35.80" in sar, sar[:3000]
+assert "<td>1,000</td><td>Rs 35,800.00</td>" in sar and 'href="rates-2026-11-25.html"' in sar and "+0.30" in sar
+assert "Saudi Arabia" in sar and 'aria-current="page"' in sar and 'href="aud-to-npr.html"' in sar
+assert "gorkhapay" not in sar.split("<main")[1], "GorkhaPay only compares AUD; no link on other corridors"
+assert 'href="sar-to-npr.html"' not in sar.split("<main")[1].split("Other currencies")[1]
+krw = build.render_corridor(cfg, _c["KRW"], _rates, when, "ne", _h)
+assert '<html lang="ne">' in krw and "100 KRW =" in krw and "Rs 9.60" in krw and "दक्षिण कोरियाली वोन" in krw
+assert "<td>1,000,000</td><td>Rs 96,000.00</td>" in krw
+aud = build.render_corridor(cfg, _c["AUD"], _rates, when, "en", _h)
+assert "uniquepoudell.github.io/gorkhapay" in aud
+assert "could not be read" in build.render_corridor(cfg, _c["QAR"], [], when, "en", [])
+assert 'href="sar-to-npr.html"' in build.render_rates(cfg, NRB, when, "en")
+assert 'href="sar-to-npr.ne.html"' in build.render_rates(cfg, NRB, when, "ne")
 print("OK: rates page")
