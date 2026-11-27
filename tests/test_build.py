@@ -212,4 +212,28 @@ assert hist[0]["rates"][1] == {"code": "JPY", "unit": 10, "buy": 9.0, "sell": 9.
 build._nrb_payload = lambda *a, **k: (_ for _ in ()).throw(ConnectionError("closed"))
 assert build.nrb_history(["AUD"]) == []
 build._nrb_payload = _orig_payload
+# NRB retry: a dropped request is retried, and gives up after the last try.
+import io, datetime as _dt  # noqa: E402
+_orig_open, _tries = build.urllib.request.urlopen, []
+def _flaky(req, timeout=None):
+    _tries.append(1)
+    if len(_tries) < 3:
+        raise TimeoutError("The read operation timed out")
+    return io.BytesIO(b'{"data": {"payload": []}}')
+build.urllib.request.urlopen = _flaky
+assert build._nrb_get("https://x", tries=3, wait=0) == {"data": {"payload": []}} and len(_tries) == 3
+_tries.clear()
+try:
+    build._nrb_get("https://x", tries=2, wait=0)
+    raise AssertionError("should give up after the last try")
+except TimeoutError:
+    assert len(_tries) == 2
+build.urllib.request.urlopen = _orig_open
+# When NRB can't be read, a recent NRB day saved by an earlier build is used before market rates.
+_today = _dt.date(2026, 11, 27)
+_saved = [{"date": "2026-11-26", "rates": [dict(r, date="2026-11-26") for r in NRB]}]
+assert build.saved_nrb_day(_saved, _today) == _saved[0]["rates"]
+assert build.saved_nrb_day(_saved, _dt.date(2026, 12, 5)) == [], "too old to call today's rate"
+assert build.saved_nrb_day([], _today) == [] and build.saved_nrb_day([{"date": "bad", "rates": NRB}], _today) == []
+assert build.saved_nrb_day([{"date": "2026-11-26", "rates": [dict(NRB[0], src="market")]}], _today) == []
 print("OK: rates page")
