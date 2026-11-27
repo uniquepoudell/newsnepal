@@ -30,6 +30,7 @@ import os
 import re
 import shutil
 import sys
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.parse import quote
@@ -453,13 +454,31 @@ UA_HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 
               "Accept": "application/json"}
 
 
+NRB_TRIES, NRB_WAIT = 3, 4.0   # NRB's API often drops or stalls one request; a short retry usually works
+
+
+def _nrb_get(url: str, tries: int | None = None, wait: float | None = None) -> dict:
+    """GET one NRB API URL as JSON, retrying a dropped or timed-out request with a growing pause."""
+    tries = NRB_TRIES if tries is None else tries
+    wait = NRB_WAIT if wait is None else wait
+    for n in range(1, tries + 1):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA_HEADERS), timeout=30) as resp:
+                return json.loads(resp.read())
+        except Exception as e:
+            if n == tries:
+                raise
+            print(f"  (NRB try {n} failed: {type(e).__name__}: {e}; retrying)")
+            time.sleep(wait * n)
+    raise RuntimeError("unreachable")
+
+
 def _nrb_payload(start, end, per_page: int = 100, max_pages: int = 5) -> list[dict]:
     """Raw NRB day records between two dates (inclusive), following pages if the API splits them."""
     days: list[dict] = []
     for page in range(1, max_pages + 1):
         url = f"{NRB_API}?page={page}&per_page={per_page}&from={start}&to={end}"
-        with urllib.request.urlopen(urllib.request.Request(url, headers=UA_HEADERS), timeout=20) as resp:
-            got = json.loads(resp.read())["data"]["payload"] or []
+        got = _nrb_get(url)["data"]["payload"] or []
         days += got
         if len(got) < per_page:
             break
@@ -511,6 +530,21 @@ def _market_rates(wanted: list[str]) -> list[dict]:
             mid = npr / float(r[c]) * unit
             out.append({"code": c, "unit": unit, "buy": mid, "sell": mid, "date": "", "src": "market"})
     return out
+
+
+def saved_nrb_day(history: list[dict], today=None, max_age_days: int = 4) -> list[dict]:
+    """The newest NRB day an earlier build saved, if it is recent enough to still be today's official rate
+    (NRB publishes no new rate on some holidays and weekends). Empty when too old or missing."""
+    today = today or datetime.now(NEPAL_TZ).date()
+    if not history:
+        return []
+    d = history[0]
+    try:
+        age = (today - datetime.strptime(d["date"], "%Y-%m-%d").date()).days
+    except (KeyError, TypeError, ValueError):
+        return []
+    rows = [r for r in d.get("rates") or [] if isinstance(r, dict) and r.get("src") == "nrb"]
+    return rows if 0 <= age <= max_age_days else []
 
 
 def fetch_forex(cfg: dict, codes: list[str] | None = None) -> list[dict]:
@@ -1723,7 +1757,11 @@ def build(config_path: Path, out: Path) -> dict:
     all_codes = list(dict.fromkeys(ticker_codes + [c.upper() for c in rp.get("currencies", [])]))
     fresh_days = nrb_history(all_codes, int(rp.get("fetch_days", 31)))
     history = merge_rate_history(fresh_days, load_rate_history(cfg, out), int(rp.get("history_days", 400)))
-    rate_table = fresh_days[0]["rates"] if fresh_days else fetch_forex(cfg, all_codes)
+    rate_table = fresh_days[0]["rates"] if fresh_days else saved_nrb_day(history)
+    if rate_table and not fresh_days:
+        print(f"  forex: {len(rate_table)} rates from Nepal Rastra Bank day {history[0]['date']} saved by an earlier build")
+    if not rate_table:
+        rate_table = fetch_forex(cfg, all_codes)
     by_code = {r["code"]: r for r in rate_table}
     forex = [by_code[c] for c in ticker_codes if c in by_code]
     (out / "rates.json").write_text(json.dumps({"built": now.isoformat(), "rates": rate_table}, indent=1), "utf-8")
