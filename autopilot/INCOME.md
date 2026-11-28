@@ -11,7 +11,7 @@ only the owner can do (signups and payouts must be in the owner's name).
 | 3 | Remittance affiliate links (Remitly, Wise) via GorkhaPay | GorkhaPay applying; News Nepal `rates.html` sends senders to the GorkhaPay comparison since 2026-11-26 | Adds links where money transfer fits | Signs up to the partner programs |
 | 4 | Display ads (Google AdSense) | Waiting on own domain | `adsense` id already supported in config | Gets the domain, applies to AdSense |
 | 5 | Sponsored cards and "Advertise" page | Planned (ROADMAP 8) | Builds slot and page | Agrees deals, sends Stripe invoices |
-| 6 | Paid checklists (GorkhaPay products) | On sale at GorkhaPay | Links to them from visa stories | Nothing |
+| 6 | Paid checklists (GorkhaPay products) | On sale at GorkhaPay; linked from News Nepal visa pages and AUD to NPR page since 2026-11-28 (PR #19) | Keeps links and price in step with GorkhaPay `config.json` | Nothing |
 | 7 | Crypto donations | Live | Keeps the box tidy | Nothing |
 
 Rejected: crypto exchange or trading referrals (illegal in Nepal), paid visa advice (needs MARA registration),

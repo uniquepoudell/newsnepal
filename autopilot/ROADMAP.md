@@ -20,8 +20,9 @@ Rank by: more readers or more income per hour of work. Keep each item small enou
 0b. **Daily share card.** Each build makes a square "Today in Nepal money" image (rates, NEPSE line, 3 headlines)
     and a caption in English and Nepali, saved at `/share/today.png` and `/share/today.txt`, so the owner can post
     it to Facebook, TikTok or Viber groups in 30 seconds. Never post automatically.
-0c. **Sell what we already have.** Link the GorkhaPay checklists (A$5, already on sale) from visa stories and the
-    visa pages, as a clearly labelled product box.
+0c. ~~**Sell what we already have.**~~ Done 2026-11-28 (PR #19): "Our checklists" box (A$5 each, links to the
+    GorkhaPay sales pages) in the visa sidebar on all 8 visa pages and on `aud-to-npr.html`. Next step: a short
+    in-story line under visa stories once topic/story pages exist (ROADMAP 1).
 1. **Story and topic pages for search traffic.** Topic pages (`/topic/nepse.html`, `/topic/nrb.html`,
    `/topic/bitcoin.html`, `/topic/student-visa.html`…) with their own title, description, intro paragraph and the
    matching stories. Add them to the sitemap and nav. Search engines rank pages, not one long home page.
@@ -45,6 +46,7 @@ Rank by: more readers or more income per hour of work. Keep each item small enou
     2026-11-26 build: SBS Nepali keeps 1 of 69 and "Nepali news: Australia visa" 0 of 3; check their keyword match.
 
 ## Done
+- 2026-11-28: "Our checklists" product box on visa pages and AUD to NPR (PR #19).
 - 2026-11-27: Currency landing pages (`sar-to-npr.html` etc., PR #18).
 - 2026-11-27: NRB API retries + last saved NRB day before market fallback (PR #17). Builds 2026-11-26 11:54 to
   2026-11-27 02:55 UTC had shown market rates because NRB dropped requests.
