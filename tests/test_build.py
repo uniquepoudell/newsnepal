@@ -262,3 +262,15 @@ assert "could not be read" in build.render_corridor(cfg, _c["QAR"], [], when, "e
 assert 'href="sar-to-npr.html"' in build.render_rates(cfg, NRB, when, "en")
 assert 'href="sar-to-npr.ne.html"' in build.render_rates(cfg, NRB, when, "ne")
 print("OK: rates page")
+# Our checklists box: on visa pages and the AUD page only, links to the GorkhaPay sales page (never Stripe).
+_vis_en = build.visa_sidebar(cfg, "en")
+assert "Our checklists" in _vis_en and "gorkhapay/products/arriving-australia-checklist.html" in _vis_en, _vis_en
+assert "A$5" in _vis_en and "buy.stripe.com" not in build.product_box(cfg, "en")
+assert "not visa or tax advice" in _vis_en
+_vis_ne = build.visa_sidebar(cfg, "ne")
+assert "हाम्रा चेकलिस्ट" in _vis_ne and "अस्ट्रेलिया आउँदा" in _vis_ne and "Our checklists" not in _vis_ne
+assert "Our checklists" in aud and "Our checklists" not in sar
+assert build.product_box(dict(cfg, products={"items": []}), "en") == ""
+for _x in cfg["products"]["items"]:
+    assert _x["url"].startswith("https://uniquepoudell.github.io/gorkhapay/products/"), _x
+print("OK: product box")

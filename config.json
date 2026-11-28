@@ -52,6 +52,27 @@
     },
     "contact_email": ""
   },
+  "products": {
+    "_help": "Our own paid checklists, sold on the GorkhaPay site (Stripe checkout there). Shown as a labelled 'Our checklists' box in the visa sidebar and on the AUD to NPR page. 'url' must be the GorkhaPay sales page, never a payment link. Keep 'price' the same as GorkhaPay config shop.products[].price_aud; an empty list hides the box.",
+    "items": [
+      {
+        "title": "Arriving in Australia: Money and Work Starter Checklist",
+        "title_ne": "अस्ट्रेलिया आउँदा: पैसा र कामको सुरुवाती चेकलिस्ट",
+        "summary": "Tax file number, bank, super, your pay rights, scams to avoid and sending money home safely.",
+        "summary_ne": "ट्याक्स फाइल नम्बर, बैंक, सुपर, तलबको अधिकार, ठगीबाट बच्ने र घर पैसा सुरक्षित पठाउने तरिका।",
+        "price": "A$5",
+        "url": "https://uniquepoudell.github.io/gorkhapay/products/arriving-australia-checklist.html"
+      },
+      {
+        "title": "Leaving Australia Money Checklist",
+        "title_ne": "अस्ट्रेलिया छोड्नु अघि: पैसा सम्बन्धी चेकलिस्ट",
+        "summary": "Don't leave your final pay, tax refund, super or rental bond behind when you go home to Nepal.",
+        "summary_ne": "नेपाल फर्कंदा अन्तिम तलब, कर फिर्ता, सुपर वा घरको बन्ड नछुटाउनुहोस्।",
+        "price": "A$5",
+        "url": "https://uniquepoudell.github.io/gorkhapay/products/leaving-australia-checklist.html"
+      }
+    ]
+  },
   "rates_page": {
     "_help": "The 'Rates' page (rates.html): AUD to NPR today plus every listed Nepal Rastra Bank rate. 'remittance_compare_url' is the GorkhaPay comparison page; empty hides that box.",
     "currencies": ["USD", "EUR", "GBP", "CHF", "AUD", "CAD", "SGD", "JPY", "CNY", "SAR", "QAR", "THB", "AED", "MYR", "KRW", "SEK", "DKK", "HKD", "KWD", "BHD", "OMR", "INR"],

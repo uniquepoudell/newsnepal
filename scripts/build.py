@@ -1341,6 +1341,8 @@ def render_corridor(cfg: dict, corridor: dict, rates: list[dict], built_at: date
                      f'<a class="btn btn-support" href="{esc(gp)}">{rx["send_btn"]}</a></aside>')
     else:
         parts.append(f'<aside class="box send-box"><h2>{x["tip_h"]}</h2><p>{x["tip_p"]}</p></aside>')
+    if code == "AUD":
+        parts.append(product_box(cfg, lang))
     others = "".join(f'<li><a href="{page_file(corridor_page(c["code"]), lang)}">{esc(c["code"])} → NPR</a></li>'
                      for c in corridors(cfg) if c["code"] != code)
     if others:
@@ -1441,6 +1443,28 @@ def featured_agents_box(cfg: dict, lang: str) -> str:
     return f'<section class="box agents"><h3>{head}</h3><ul>{"".join(rows)}</ul><p class="fine">{note}</p></section>'
 
 
+def product_box(cfg: dict, lang: str) -> str:
+    """Labelled box for our own paid checklists (sold on GorkhaPay). Empty config hides it."""
+    items = [x for x in (cfg.get("products") or {}).get("items", []) if x.get("title") and x.get("url")]
+    if not items:
+        return ""
+    if lang == "en":
+        head, note, see = ("Our checklists", "Our own printable PDFs, sold on our sister site GorkhaPay. "
+                           "General money and work information, not visa or tax advice.", "See what's inside")
+    else:
+        head, note, see = ("हाम्रा चेकलिस्ट", "हाम्रै छाप्न मिल्ने PDF, हाम्रो सहयोगी साइट GorkhaPay मा बिक्रीमा। "
+                           "पैसा र कामबारे सामान्य जानकारी, भिसा वा कर सल्लाह होइन।", "भित्र के छ हेर्नुहोस्")
+    rows = []
+    for x in items:
+        title = (lang != "en" and x.get(f"title_{lang}")) or x["title"]
+        summary = (lang != "en" and x.get(f"summary_{lang}")) or x.get("summary", "")
+        price = f' <span class="price">{esc(x["price"])}</span>' if x.get("price") else ""
+        rows.append(f'<li><strong>{esc(title)}</strong>{price}<br><span class="fine">{esc(summary)}</span><br>'
+                    f'<a href="{esc(x["url"])}" rel="noopener">{see} →</a></li>')
+    return (f'<section class="box products"><h3>{head}</h3><ul class="product-list">{"".join(rows)}</ul>'
+            f'<p class="fine">{note}</p></section>')
+
+
 def visa_sidebar(cfg: dict, lang: str) -> str:
     vis, t = cfg.get("visa", {}), T[lang]
     if lang == "en":
@@ -1463,7 +1487,7 @@ def visa_sidebar(cfg: dict, lang: str) -> str:
             if sp.get("url") else esc(sp["text"])
         sponsor = f'<section class="box sponsor"><h3>{t["sponsor"]}</h3><p>{link}</p></section>'
     return (f'<aside class="side">{notice}<section class="box"><h3>{guides[0]}</h3><ul class="links">{links}</ul></section>'
-            f'{featured_agents_box(cfg, lang)}{support_box(cfg, lang, compact=True)}{sponsor}</aside>')
+            f'{product_box(cfg, lang)}{featured_agents_box(cfg, lang)}{support_box(cfg, lang, compact=True)}{sponsor}</aside>')
 
 
 def render_visa(cfg: dict, items: list[dict], built_at: datetime, lang: str) -> str:
