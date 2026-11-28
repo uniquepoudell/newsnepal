@@ -234,3 +234,38 @@
     });
   }
 })();
+
+/* citizenship test practice: instant marking, values rule */
+(function () {
+  var quiz = document.getElementById('cz-quiz');
+  if (!quiz) return;
+  var res = document.getElementById('cz-result'), txt = document.getElementById('cz-text');
+  var sets = quiz.querySelectorAll('fieldset.cq');
+  function score() {
+    var right = 0, done = 0, vwrong = false;
+    sets.forEach(function (fs) {
+      var pick = fs.querySelector('input:checked');
+      fs.classList.remove('right', 'wrong');
+      if (!pick) return;
+      done++;
+      var ok = pick.value === fs.dataset.answer;
+      fs.classList.add(ok ? 'right' : 'wrong');
+      if (ok) right++; else if (fs.dataset.values === '1') vwrong = true;
+    });
+    var total = sets.length;
+    txt.textContent = right + ' / ' + total;
+    if (done === total) {
+      var key = vwrong ? 'vfail' : (right / total >= 0.75 ? 'pass' : 'fail');
+      txt.textContent = res.dataset[key].replace('{s}', right).replace('{t}', total);
+      res.className = 'result ' + (key === 'pass' ? 'ok' : 'bad');
+    } else { res.className = 'result'; }
+  }
+  quiz.addEventListener('change', function (e) {
+    var fs = e.target.closest('fieldset.cq');
+    if (fs) { var d = fs.querySelector('details'); if (d) d.open = true; }
+    score();
+  });
+  quiz.addEventListener('reset', function () {
+    setTimeout(function () { sets.forEach(function (fs) { var d = fs.querySelector('details'); if (d) d.open = false; }); score(); }, 0);
+  });
+})();

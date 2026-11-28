@@ -73,6 +73,12 @@
       }
     ]
   },
+  "citizenship": {
+    "_help": "Free practice page citizenship-test.html (questions in citizenship-sample.json, a sample of the paid pack). Set pack_on_sale true once the GorkhaPay sales page has its Stripe link; until then the page says the pack is coming soon.",
+    "pack_url": "https://uniquepoudell.github.io/gorkhapay/products/citizenship-test-practice-pack.html",
+    "pack_price": "A$9",
+    "pack_on_sale": false
+  },
   "rates_page": {
     "_help": "The 'Rates' page (rates.html): AUD to NPR today plus every listed Nepal Rastra Bank rate. 'remittance_compare_url' is the GorkhaPay comparison page; empty hides that box.",
     "currencies": ["USD", "EUR", "GBP", "CHF", "AUD", "CAD", "SGD", "JPY", "CNY", "SAR", "QAR", "THB", "AED", "MYR", "KRW", "SEK", "DKK", "HKD", "KWD", "BHD", "OMR", "INR"],

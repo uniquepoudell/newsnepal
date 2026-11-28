@@ -1,0 +1,112 @@
+[
+ {
+  "topic": "democracy",
+  "q": "What is a parliamentary democracy?",
+  "options": [
+   "The army runs the country",
+   "The King makes all the laws",
+   "People elect representatives to parliament to make laws for them"
+  ],
+  "answer": 2,
+  "ne": "संसदीय प्रजातन्त्रमा नागरिकले मतदान गरेर प्रतिनिधि छान्छन् र ती प्रतिनिधिले संसदमा कानुन बनाउँछन्। सरकार जनताप्रति जवाफदेही हुन्छ।"
+ },
+ {
+  "topic": "people",
+  "q": "What happened on 1 January 1901?",
+  "options": [
+   "Australia became a republic",
+   "The First Fleet arrived",
+   "The six colonies joined to form the Commonwealth of Australia"
+  ],
+  "answer": 2,
+  "ne": "१ जनवरी १९०१ मा छवटा उपनिवेश मिलेर Commonwealth of Australia बन्यो। यसलाई Federation भनिन्छ। अस्ट्रेलिया अझै गणतन्त्र (republic) होइन।"
+ },
+ {
+  "topic": "people",
+  "q": "Who were the first people to live in Australia?",
+  "options": [
+   "Dutch sailors",
+   "British settlers",
+   "Aboriginal and Torres Strait Islander peoples"
+  ],
+  "answer": 2,
+  "ne": "अस्ट्रेलियाका पहिलो बासिन्दा Aboriginal र Torres Strait Islander जनता हुन्। उनीहरूको संस्कृति संसारकै सबैभन्दा पुरानो निरन्तर संस्कृतिमध्ये पर्छ।"
+ },
+ {
+  "topic": "government",
+  "q": "What are the three levels of government in Australia?",
+  "options": [
+   "National, military and religious",
+   "Federal, provincial and village",
+   "Federal, state or territory, and local"
+  ],
+  "answer": 2,
+  "ne": "तीन तह: संघीय (federal/Commonwealth), राज्य वा territory, र स्थानीय (local council)। नेपालको संघ, प्रदेश, स्थानीय तहसँग मिल्दोजुल्दो।"
+ },
+ {
+  "topic": "government",
+  "q": "Who represents the King in Australia?",
+  "options": [
+   "The Governor-General",
+   "The Speaker",
+   "The Prime Minister"
+  ],
+  "answer": 0,
+  "ne": "Governor-General ले King को प्रतिनिधित्व गर्छन्। प्रधानमन्त्रीको सल्लाहमा King ले उनलाई नियुक्त गर्छन्।"
+ },
+ {
+  "topic": "democracy",
+  "q": "What does freedom of association mean?",
+  "options": [
+   "Everyone must join a trade union",
+   "People can join or leave any legal group, such as a political party, union or club",
+   "People can only meet with family"
+  ],
+  "answer": 1,
+  "ne": "Freedom of association भनेको कानुनी संस्था, पार्टी, युनियन वा क्लबमा जोडिन वा छोड्न पाउने स्वतन्त्रता हो। कसैलाई जबरजस्ती सदस्य बनाउन मिल्दैन।"
+ },
+ {
+  "topic": "values",
+  "q": "Are men and women equal under Australian law?",
+  "options": [
+   "Yes",
+   "No, men have more rights",
+   "Only at work"
+  ],
+  "answer": 0,
+  "ne": "हो, महिला र पुरुष कानुनको नजरमा पूर्ण रूपमा बराबर छन्।"
+ },
+ {
+  "topic": "government",
+  "q": "Who represents the King in each state?",
+  "options": [
+   "The Lord Mayor",
+   "The Premier",
+   "The Governor"
+  ],
+  "answer": 2,
+  "ne": "हरेक राज्यमा King को प्रतिनिधि Governor हुन्छन्। राज्य सरकारको नेता Premier हुन्।"
+ },
+ {
+  "topic": "values",
+  "q": "Which of these is an important Australian value?",
+  "options": [
+   "Respect for the equal worth, dignity and freedom of every person",
+   "Treating people differently by their background",
+   "Obeying family elders even when it breaks the law"
+  ],
+  "answer": 0,
+  "ne": "हरेक व्यक्तिको बराबर मूल्य, मर्यादा र स्वतन्त्रताको सम्मान अस्ट्रेलियाली मूल्यको मूल हो।"
+ },
+ {
+  "topic": "values",
+  "q": "Should you respect other people's right to hold opinions different from yours?",
+  "options": [
+   "Yes",
+   "Only if they are from your community",
+   "No"
+  ],
+  "answer": 0,
+  "ne": "अरूको फरक विचार राख्ने अधिकारको सम्मान गर्नु अस्ट्रेलियाली मूल्य हो, सहमत नभए पनि।"
+ }
+]

@@ -115,6 +115,11 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "अस्ट्रेलिया भिसा" in visa_ne and "MARN 1234567" in visa_ne and "migration advice" not in visa_ne
     check = (tmp / "out" / "check-agent.html").read_text()
     assert 'id="flags"' in check and "portal.mara.gov.au" in check and "not migration advice" in check
+    cz = (tmp / "out" / "citizenship-test.html").read_text()
+    cz_ne = (tmp / "out" / "citizenship-test.ne.html").read_text()
+    assert cz.count('class="cq"') == 10 and 'id="cz-quiz"' in cz and "Unofficial practice questions" in cz
+    assert "Full practice pack coming soon" in cz  # pack not on sale in the default config
+    assert "अनौपचारिक अभ्यास प्रश्न" in cz_ne and 'href="citizenship-test.ne.html"' in visa_ne
     for f in ("index.ne.html", "about.ne.html", "visa.html", "check-agent.ne.html", "visa-changes-2026.html",
               "visa-changes-2026.ne.html", "visa-scams.html", "visa-scams.ne.html", "visa-items.json"):
         assert (tmp / "out" / f).exists(), f
