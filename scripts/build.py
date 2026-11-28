@@ -9,6 +9,7 @@ static site to ./public in English and Nepali:
   check-agent.html / check-agent.ne.html     "check your migration agent" tool
   visa-changes-2026(.ne).html, visa-scams(.ne).html   guides
   about.html / about.ne.html                 what the site is, plus the legal disclaimer
+  citizenship-test.html (+ .ne)            free 10-question citizenship test practice (citizenship-sample.json)
   support.html / support.ne.html             ways readers pay: card (Stripe), Nepal QR (eSewa/Fonepay), crypto
   img/ph-*.svg                               branded pictures for stories whose publisher gave no image
   items.json, visa-items.json                stories as data (keeps history and translations)
@@ -1472,13 +1473,15 @@ def visa_sidebar(cfg: dict, lang: str) -> str:
                   'We are not migration agents and cannot advise on your visa. For your own case, use a registered '
                   'migration agent or an Australian lawyer.</p></section>')
         guides = ("Guides", [("check-agent", "Check your migration agent"), ("visa-changes-2026", "What changed in 2026"),
-                             ("visa-scams", "Warning signs of a visa scam")])
+                             ("visa-scams", "Warning signs of a visa scam"),
+                             ("citizenship-test", "Free citizenship test practice")])
     else:
         notice = ('<section class="box notice"><h3>जानकारी हो, सल्लाह होइन</h3><p>हामी समाचार र आधिकारिक नियम बुझाउँछौं। '
                   'हामी माइग्रेसन एजेन्ट होइनौं र तपाईंको भिसाबारे सल्लाह दिन सक्दैनौं। आफ्नो केसका लागि दर्ता भएको '
                   'माइग्रेसन एजेन्ट वा अस्ट्रेलियाली वकिल प्रयोग गर्नुहोस्।</p></section>')
         guides = ("गाइडहरू", [("check-agent", "आफ्नो माइग्रेसन एजेन्ट जाँच्नुहोस्"), ("visa-changes-2026", "२०२६ मा के बदलियो"),
-                              ("visa-scams", "भिसा ठगीका संकेतहरू")])
+                              ("visa-scams", "भिसा ठगीका संकेतहरू"),
+                              ("citizenship-test", "नि:शुल्क नागरिकता परीक्षा अभ्यास")])
     links = "".join(f'<li><a href="{page_file(b, lang)}">{esc(lbl)}</a></li>' for b, lbl in guides[1])
     sp = vis.get("sponsor") or {}
     sponsor = ""
@@ -1611,6 +1614,107 @@ Lawyers are not on this register; check them with the law society in their state
   {visa_sidebar(cfg, lang)}
 </main>"""
     return page_shell(cfg, lang, "check-agent", f"{h1} | {s['title']}", body, description=lead, kind="visa")
+
+
+
+# --------------------------------------------------------------------------- citizenship test practice (free sample)
+
+def citizenship_sample() -> list[dict]:
+    f = ROOT / "citizenship-sample.json"
+    return json.loads(f.read_text("utf-8")) if f.is_file() else []
+
+
+def render_citizenship(cfg: dict, lang: str) -> str:
+    """Free 10-question citizenship test practice with Nepali explanations; promotes the paid pack on GorkhaPay."""
+    s = cfg["site"]
+    cz = cfg.get("citizenship") or {}
+    qs = citizenship_sample()
+    letters = "ABC"
+    blocks = []
+    for i, q in enumerate(qs, 1):
+        opts = "".join(
+            f'<li><label><input type="radio" name="q{i}" value="{k}"> <b>{letters[k]}</b> {esc(o)}</label></li>'
+            for k, o in enumerate(q["options"]))
+        tag = ' <span class="vtag">values</span>' if q["topic"] == "values" else ""
+        ans = f'{letters[q["answer"]]}. {esc(q["options"][q["answer"]])}'
+        blocks.append(f'<fieldset class="cq" data-answer="{q["answer"]}" data-values="{1 if q["topic"] == "values" else 0}">'
+                      f'<legend><span class="n">{i}.</span> {esc(q["q"])}{tag}</legend><ol class="opts">{opts}</ol>'
+                      f'<details class="why"><summary>{"Answer and Nepali explanation" if lang == "en" else "उत्तर र नेपालीमा व्याख्या"}</summary>'
+                      f'<p><strong>{ans}</strong></p><p lang="ne">{esc(q["ne"])}</p></details></fieldset>')
+    url = (cz.get("pack_url") or "").strip()
+    on_sale = bool(cz.get("pack_on_sale")) and url
+    price = esc(cz.get("pack_price") or "")
+    home, prep, practice = ("https://immi.homeaffairs.gov.au/citizenship/test-and-interview/learn-about-citizenship-interview-and-test/learn-about-citizenship-test",
+                            "https://immi.homeaffairs.gov.au/citizenship/test-and-interview/prepare-for-test",
+                            "https://citizenshippracticetest.homeaffairs.gov.au/")
+    if lang == "en":
+        h1 = "Australian citizenship test practice: 10 free questions with Nepali explanations"
+        lead = ("The real test is in English, so these questions are in English. Every answer has a short explanation in Nepali. "
+                "Tick an answer to see if you're right.")
+        facts = ("<h2>How the real test works</h2><ul><li>20 multiple choice questions, 45 minutes, in English only.</li>"
+                 "<li>To pass you need at least 15 of 20 (75%) <strong>and all 5 Australian values questions right</strong>. "
+                 "Values questions are marked <span class=\"vtag\">values</span> below.</li>"
+                 "<li>All questions come from the free official booklet <em>Australian Citizenship: Our Common Bond</em>.</li></ul>"
+                 f'<p class="fine">Source: <a href="{home}" target="_blank" rel="noopener">Department of Home Affairs ↗</a>, checked 28 November 2026.</p>')
+        score_l, reset_l = "Your score", "Start again"
+        res = ('data-pass="Pass: {s} of {t} and every values question right. Keep practising with full 20-question tests." '
+               'data-fail="{s} of {t}. In the real test you need 75% and every values question right. Read the Nepali explanations and try again." '
+               'data-vfail="{s} of {t}, but a values question is wrong. In the real test that is a fail, even with a high score."')
+        if on_sale:
+            pack = (f'<section class="box products cta"><h2>Want 100 more questions?</h2><p>Our <strong>Citizenship Test Practice Pack</strong>'
+                    f' {price}: 5 full practice tests in the real format, Nepali explanation for every answer, a two-week study plan, '
+                    f'and an English and Nepali word list. Printable PDF.</p><a class="btn" href="{esc(url)}" rel="noopener">See what\'s inside →</a>'
+                    '<p class="fine">Sold on our sister site GorkhaPay. Unofficial practice material.</p></section>')
+        else:
+            pack = ('<section class="box products cta"><h2>Full practice pack coming soon</h2><p>100 questions, 5 full practice tests, '
+                    'a Nepali explanation for every answer and a two-week study plan.</p></section>')
+        official = (f'<section class="box"><h2>Free official help</h2><ul class="links">'
+                    f'<li><a href="{prep}" target="_blank" rel="noopener">Our Common Bond booklet and podcast (Home Affairs) ↗</a></li>'
+                    f'<li><a href="{practice}" target="_blank" rel="noopener">Official online practice test ↗</a></li></ul></section>')
+        disclaimer = ("Unofficial practice questions written by News Nepal. Not made by or linked to the Australian Government or "
+                      "the Department of Home Affairs, and not the real test questions. Not migration advice.")
+    else:
+        h1 = "अस्ट्रेलियाली नागरिकता परीक्षा अभ्यास: नेपाली व्याख्यासहित १० नि:शुल्क प्रश्न"
+        lead = ("असली परीक्षा अंग्रेजीमा हुन्छ, त्यसैले प्रश्न अंग्रेजीमै छन्। हरेक उत्तरको छोटो व्याख्या नेपालीमा छ। "
+                "उत्तर छान्नुहोस्, सही वा गलत तुरुन्त थाहा हुन्छ।")
+        facts = ("<h2>असली परीक्षा कस्तो हुन्छ</h2><ul><li>२० वटा बहुवैकल्पिक प्रश्न, ४५ मिनेट, अंग्रेजीमा मात्र।</li>"
+                 "<li>पास हुन २० मध्ये कम्तीमा १५ (७५%) सही <strong>र अस्ट्रेलियाली मूल्यसम्बन्धी ५ वटै प्रश्न सही</strong> हुनुपर्छ। "
+                 "तल त्यस्ता प्रश्नमा <span class=\"vtag\">values</span> लेखिएको छ।</li>"
+                 "<li>सबै प्रश्न सरकारको नि:शुल्क पुस्तिका <em>Australian Citizenship: Our Common Bond</em> बाट आउँछन्।</li></ul>"
+                 f'<p class="fine">स्रोत: <a href="{home}" target="_blank" rel="noopener">Department of Home Affairs ↗</a>, २८ नोभेम्बर २०२६ मा जाँचिएको।</p>')
+        score_l, reset_l = "तपाईंको अंक", "फेरि सुरु गर्नुहोस्"
+        res = ('data-pass="पास: {t} मध्ये {s}, सबै values प्रश्न सही। पूरा २० प्रश्नको परीक्षाले अभ्यास जारी राख्नुहोस्।" '
+               'data-fail="{t} मध्ये {s}। असली परीक्षामा ७५% र सबै values प्रश्न सही चाहिन्छ। नेपाली व्याख्या पढेर फेरि प्रयास गर्नुहोस्।" '
+               'data-vfail="{t} मध्ये {s}, तर एउटा values प्रश्न गलत भयो। असली परीक्षामा अंक धेरै भए पनि यो फेल हो।"')
+        if on_sale:
+            pack = (f'<section class="box products cta"><h2>थप १०० प्रश्न चाहियो?</h2><p>हाम्रो <strong>नागरिकता परीक्षा अभ्यास पुस्तिका</strong>'
+                    f' {price}: असली ढाँचाका ५ वटा पूरा अभ्यास परीक्षा, हरेक उत्तरको नेपाली व्याख्या, दुई हप्ताको अध्ययन योजना र '
+                    f'अंग्रेजी-नेपाली शब्दावली। छाप्न मिल्ने PDF।</p><a class="btn" href="{esc(url)}" rel="noopener">भित्र के छ हेर्नुहोस् →</a>'
+                    '<p class="fine">हाम्रो सहयोगी साइट GorkhaPay मा बिक्रीमा। अनौपचारिक अभ्यास सामग्री।</p></section>')
+        else:
+            pack = ('<section class="box products cta"><h2>पूरा अभ्यास पुस्तिका छिट्टै आउँदैछ</h2><p>१०० प्रश्न, ५ पूरा अभ्यास परीक्षा, '
+                    'हरेक उत्तरको नेपाली व्याख्या र दुई हप्ताको अध्ययन योजना।</p></section>')
+        official = (f'<section class="box"><h2>नि:शुल्क आधिकारिक सामग्री</h2><ul class="links">'
+                    f'<li><a href="{prep}" target="_blank" rel="noopener">Our Common Bond पुस्तिका र पोडकास्ट (Home Affairs) ↗</a></li>'
+                    f'<li><a href="{practice}" target="_blank" rel="noopener">आधिकारिक अनलाइन अभ्यास परीक्षा ↗</a></li></ul></section>')
+        disclaimer = ("न्युज नेपालले लेखेका अनौपचारिक अभ्यास प्रश्न। अस्ट्रेलियाली सरकार वा Department of Home Affairs सँग "
+                      "सम्बन्धित छैन, र यी असली परीक्षाका प्रश्न होइनन्। माइग्रेसन सल्लाह होइन।")
+    body = f"""<main id="main" class="wrap layout">
+  <div class="feed prose-in citizenship">
+    <h1>{h1}</h1>
+    <p class="lead">{lead}</p>
+    <section class="box">{facts}</section>
+    <form class="quiz" id="cz-quiz" onsubmit="return false">{''.join(blocks)}
+      <div class="result" id="cz-result" role="status" aria-live="polite" {res}><strong>{score_l}:</strong> <span id="cz-text">0 / {len(qs)}</span></div>
+      <button type="reset" class="btn" id="cz-reset">{reset_l}</button>
+    </form>
+    {pack}
+    {official}
+    <p class="fine">{disclaimer}</p>
+  </div>
+  {visa_sidebar(cfg, lang)}
+</main>"""
+    return page_shell(cfg, lang, "citizenship-test", f"{h1} | {s['title']}", body, description=lead, kind="visa", nav_as="visa")
 
 
 def render_changes(cfg: dict, lang: str) -> str:
@@ -1917,6 +2021,7 @@ def build(config_path: Path, out: Path) -> dict:
             ("check-agent", render_check_agent(cfg, lang)),
             ("visa-changes-2026", render_changes(cfg, lang)),
             ("visa-scams", render_scams(cfg, lang)),
+            ("citizenship-test", render_citizenship(cfg, lang)),
         ):
             name = page_file(base_name, lang)
             (out / name).write_text(html_text, "utf-8")

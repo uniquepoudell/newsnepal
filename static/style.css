@@ -382,3 +382,22 @@ td.chg.up { color: #16915a; } td.chg.down { color: var(--crimson); } td.chg.same
 .products { border-left: 4px solid var(--crimson); }
 .product-list { margin: 6px 0 8px; padding-left: 0; list-style: none; display: grid; gap: 10px; }
 .product-list .price { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; font-size: .8rem; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
+
+/* citizenship test practice */
+.vtag { display: inline-block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 999px; padding: 0 7px; vertical-align: middle; }
+.quiz { display: grid; gap: 14px; margin: 18px 0; }
+.cq { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; background: var(--surface); margin: 0; }
+.cq legend { font-weight: 700; padding: 0 4px; }
+.cq .n { color: var(--muted, #6b7280); }
+.cq .opts { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+.cq .opts label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; padding: 6px 8px; border-radius: 8px; }
+.cq .opts label:hover { background: var(--bg); }
+.cq.right { border-color: #2f8f5b; box-shadow: inset 4px 0 0 #2f8f5b; }
+.cq.wrong { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.cq .why summary { cursor: pointer; font-size: .9rem; }
+.cq .why p { margin: 6px 0; }
+.result.ok { border-color: #2f8f5b; background: color-mix(in srgb, #2f8f5b 12%, var(--surface)); }
+.result.bad { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.quiz .btn { justify-self: start; }
+.cta { margin: 18px 0; }
